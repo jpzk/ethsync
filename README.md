@@ -9,6 +9,14 @@ It uses different persistence backends to store in-flight transaction and the bl
 
 The key design priciple is minimal elegant code, using only required  dependencies to do the job. The component is powered by Monix, sttp and circe. Hence, it does not require any legacy Java library such as Web3j. 
 
+## Principles
+
+* Modern Scala using Monix, sttp, circe, avoid Java code (e.g. web3j)
+* Asynchronous and parallel (non-blocking) code
+* Fault-tolerant
+* At-least-once data guarantees
+* Configurable via ENV variables (suitable to Docker)
+
 ## Starting without Docker
 
 First compile, test & assemble the Jar using:
@@ -31,3 +39,4 @@ export RINKEBY_TOPIC="rinkeby"
 java -cp "core/src/resources/:core/target/scala-2.12/ethsync.jar" com.reebo.ethsync.core.Main
 
 ```
+
