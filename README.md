@@ -8,3 +8,26 @@ ethsync is a reliable Ethereum transaction sink for an Ethereum client cluster w
 It uses different persistence backends to store in-flight transaction and the block offset to ensure at-least-once guarantees. Fault-tolerance is achieved by synchronising with the blockchain. This makes it ideal for the use in company environments. 
 
 The key design priciple is minimal elegant code, using only required  dependencies to do the job. The component is powered by Monix, sttp and circe. Hence, it does not require any legacy Java library such as Web3j. 
+
+## Starting without Docker
+
+First compile, test & assemble the Jar using:
+```$xslt
+sbt 'core/assembly'
+```
+
+Then run the Jar with these e.g. ENV variables
+
+```
+#!/usr/bin/env bash
+export MAINNET_NODES="http://localhost:8545"
+export MAINNET_BROKERS="localhost:4545"
+export MAINNET_TOPIC="mainnet"
+
+export RINKEBY_NODES="http://localhost:8645"
+export RINKEBY_BROKERS="localhost:4545"
+export RINKEBY_TOPIC="rinkeby"
+
+java -cp "core/src/resources/:core/target/scala-2.12/ethsync.jar" com.reebo.ethsync.core.Main
+
+```
