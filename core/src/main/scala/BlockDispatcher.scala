@@ -24,6 +24,9 @@ import monix.execution.atomic.AtomicLong
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
+/**
+  * Consumer methods for new blocks passed via MVar
+  */
 object BlockDispatcher extends LazyLogging {
 
   /**
@@ -65,6 +68,12 @@ object BlockDispatcher extends LazyLogging {
 /**
   * Retrieves new incoming blocks; but it is also checking if there are blocks
   * missing between the last time it was running and then fetches those blocks.
+  *
+  * @param id network name
+  * @param tXDispatcher transaction dispatcher to use
+  * @param retriever retriever for blocks (when need to replay blocks)
+  * @param persistence block offset persistence (fault tolerance)
+  * @param offset current block offset
   */
 case class BlockDispatcher(id: String,
                            tXDispatcher: TXDispatcher,
@@ -96,7 +105,7 @@ case class BlockDispatcher(id: String,
     ret <- newDis match {
       case Success(r) =>
         this.persistence.setLast(block.data.number).flatMap {
-          _ =>Task(this.copy(tXDispatcher = r))
+          _ => Task(this.copy(tXDispatcher = r))
         }
       case Failure(e) =>
         logger.error("Could not acknowledge block; failure in TXdispatcher", e)

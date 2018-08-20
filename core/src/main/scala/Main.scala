@@ -29,70 +29,39 @@ import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.language.implicitConversions
 
-case class Config(network: String,
-                  nodes: Seq[String],
-                  kafka: Seq[String],
-                  topic: String)
-
 object Main extends App with LazyLogging {
   val mainScheduler = Scheduler.io(s"main")
-  val retryPersistence = BackoffRetry(10, 1.seconds)
-  val retriever = new BlockRetriever {
-    override def getBlock(height: Long): Task[Protocol.FullBlock[ShallowTX]] = ???
-  }
-
-  val networks = Seq("mainnet", "kovan", "rinkeby", "ropsten")
-    .filter { n =>
-      sys.env.isDefinedAt(s"${n.toUpperCase()}_NODES") &&
-        sys.env.isDefinedAt(s"${n.toUpperCase()}_TOPIC")
-    }
-
-  val configs = networks
-    .map { n =>
-      (n,
-        getStrings(n, "NODES"),
-        getStrings(n, "BROKERS"),
-        getString(n, "TOPIC"))
-    }
-    .map { case (n, nodes, brokers, topic) =>
-      Config(n, nodes, brokers, topic)
-    }
-
-  logger.info(configs.toString())
-
   Task
-    .gatherUnordered(configs.map { c => setup(c).executeAsync })
+    .gatherUnordered(Config.load.map { c => Setup.materialize(c).executeAsync })
     .onErrorHandle { err =>
       logger.error(err.getMessage)
     }
     .runOnComplete { _ =>
       logger.info("Shutdown.")
     }(mainScheduler)
+}
 
+object Setup extends LazyLogging {
 
-  def getStrings(name: String, suffix: String) = {
-    sys.env.getOrElse(s"${name.toUpperCase()}_$suffix",
-      throw new Exception(
-        s"${name}_$suffix not found")
-    ).split(",")
-  }
-
-  def getString(name: String, suffix: String) = {
-    sys.env.getOrElse(s"${name.toUpperCase()}_$suffix", throw new Exception(
-      s"${name}_$suffix not found"
-    ))
-  }
-
-  def setup(config: Config) = {
+  /**
+    * Materialize Task for one network setup
+    *
+    * @param config
+    * @return
+    */
+  def materialize(config: Config): Task[Unit] = {
 
     def sink(tx: FullTX) = Task {
       logger.info(tx.data.hash)
     }
 
     val network = config.network
-
     lazy val prodScheduler = Scheduler.io(name = s"$network-prod")
     lazy val consumerScheduler = Scheduler.io(name = s"$network-consumer")
+    val retryPersistence = BackoffRetry(10, 1.seconds)
+    val retriever = new BlockRetriever {
+      override def getBlock(height: Long): Task[Protocol.FullBlock[ShallowTX]] = ???
+    }
 
     implicit val sttpBackend: SttpBackend[Task, Observable[ByteBuffer]] =
       AsyncHttpClientMonixBackend()
@@ -118,6 +87,73 @@ object Main extends App with LazyLogging {
       consumer = BlockDispatcher.consumer(ch, initialized).executeOn(consumerScheduler)
       both <- Task.parMap2(producer, consumer) { case (_, r) => r }
     } yield both
+  }
+}
+
+/**
+  * Configuration for a setup
+  *
+  * @param network network name (could be an identifier)
+  * @param nodes sequence of URI for Ethereum nodes (http://....)
+  * @param kafka sequence of Kafka broker hosts
+  * @param topic topic in Kafka for full transactions
+  */
+case class Config(network: String,
+                  nodes: Seq[String],
+                  kafka: Seq[String],
+                  topic: String)
+
+object Config extends LazyLogging {
+
+  /**
+    * Load configs from ENV
+    *
+    * @return sequence of configs of ENV
+    */
+  def load: Seq[Config] = {
+    val networks = Seq("mainnet", "kovan", "rinkeby", "ropsten")
+      .filter { n =>
+        sys.env.isDefinedAt(s"${n.toUpperCase()}_NODES") &&
+          sys.env.isDefinedAt(s"${n.toUpperCase()}_TOPIC")
+      }
+
+    networks
+      .map { n =>
+        (n,
+          getStrings(n, "NODES"),
+          getStrings(n, "BROKERS"),
+          getString(n, "TOPIC"))
+      }
+      .map { case (n, nodes, brokers, topic) =>
+        logger.info(s"Loaded setup for ${n} with ${n.size} nodes, ${brokers.size} brokers.")
+        Config(n, nodes, brokers, topic)
+      }
+  }
+
+  /**
+    * Return an array of ENV variable
+    *
+    * @param name
+    * @param suffix
+    * @return
+    */
+  private def getStrings(name: String, suffix: String) = {
+    sys.env.getOrElse(s"${name.toUpperCase()}_$suffix",
+      throw new Exception(
+        s"${name}_$suffix not found")
+    ).split(",")
+  }
+
+  /**
+    * Return a string of ENV variable
+    * @param name
+    * @param suffix
+    * @return
+    */
+  private def getString(name: String, suffix: String) = {
+    sys.env.getOrElse(s"${name.toUpperCase()}_$suffix", throw new Exception(
+      s"${name}_$suffix not found"
+    ))
   }
 
 }

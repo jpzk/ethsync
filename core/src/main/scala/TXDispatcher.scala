@@ -30,12 +30,12 @@ import scala.util.{Failure, Try}
   * a list of transactions which getReceivedLogs failed. It is persisted using the
   * persistence supplied by FailedTXPersistence trait.
   *
-  * @param id
-  * @param lifter
-  * @param sink
-  * @param persistence
-  * @param persistenceRetry
-  * @param txs
+  * @param id               network name
+  * @param lifter           transaction receipt lifter
+  * @param sink             sink for returned transactions with receipts
+  * @param persistence      persistence for in-execution transactions
+  * @param persistenceRetry retry filter for persistence
+  * @param txs              sequence fo in-execution transactions
   */
 case class TXDispatcher(id: String,
                         lifter: TXLifter,
@@ -77,15 +77,9 @@ case class TXDispatcher(id: String,
     })
   }
 
-  /**
-    * Log output for TX dispatcher
-    *
-    * @param fullTxs
-    * @param fails
-    * @param failedToWrite
-    * @return
-    */
-  private def logOutput(fullTxs: Seq[FullTX], fails: Seq[ShallowTX], failedToWrite: Seq[ShallowTX]) = {
+  private def logOutput(fullTxs: Seq[FullTX],
+                        fails: Seq[ShallowTX],
+                        failWrite: Seq[ShallowTX]) = {
     Task {
       logger.info(s"$id Success ${
         fullTxs.size
@@ -94,7 +88,7 @@ case class TXDispatcher(id: String,
         fails.size
       } (receipt retrieval)")
       logger.info(s"$id Failed ${
-        failedToWrite.size
+        failWrite.size
       } (failed to write into sync)")
     }
   }

@@ -38,8 +38,8 @@ case class Cluster(nodes: Seq[Node] = Seq()) extends LazyLogging {
   /**
     * Lifting a shallow transaction to a full transaction
     *
-    * @param node
-    * @param tx
+    * @param node node to use when lifting transaction
+    * @param tx shallow tx to lift to full tx
     * @return
     */
   def liftTX(node: Node, tx: ShallowTX): Task[NodeResponse[FullTX]] = {

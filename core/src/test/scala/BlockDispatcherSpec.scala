@@ -140,7 +140,7 @@ class BlockDispatcherSpec extends FlatSpec with MockFactory with Matchers {
 
   def scenario(tXDispatcher: TXDispatcher,
                retriever: BlockRetriever,
-               persistence: BlockOffsetPersistence) = {
+               persistence: BlockOffsetPersistence): Task[BlockDispatcher] = {
 
     val dispatcher = BlockDispatcher("id", tXDispatcher, retriever, persistence)
     dispatcher.init
