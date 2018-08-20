@@ -13,7 +13,7 @@ The key design priciple is minimal elegant code, using only required  dependenci
 
 * Modern Scala using Monix, sttp, circe, avoid Java code (e.g. web3j)
 * Asynchronous and parallel (non-blocking) code
-* Fault-tolerant
+* Fault-tolerant (e.g. restart consuming where crashed)
 * At-least-once data guarantees
 * Configurable via ENV variables (suitable to Docker)
 
