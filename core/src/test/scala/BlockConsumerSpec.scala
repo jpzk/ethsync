@@ -16,18 +16,50 @@
   */
 package com.reebo.ethsync.core.test
 
+import com.reebo.ethsync.core._
+import com.reebo.ethsync.core.Protocol.{BlockData, FullBlock, ShallowTX}
+import monix.eval.{MVar, Task}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
+import io.circe.generic.auto._
+import io.circe.syntax._
+import scala.concurrent.duration._
+import monix.execution.Scheduler.Implicits.global
 
 class BlockConsumerSpec extends FlatSpec with MockFactory with Matchers {
 
   behavior of "BlockConsumer"
 
-  ignore should "consume blocks and dispatch blocks to TX dispatcher from MVar channel" in {
+  it should "consume blocks and dispatch blocks to TX" in {
+
+    val network = "test"
+    val txDispatcher = mock[TXDispatcher]
+    (txDispatcher.init _).expects().returns(Task.now(txDispatcher))
+    (txDispatcher.schedule _).expects(List()).returning(txDispatcher)
+    (txDispatcher.dispatch _).expects().returning(Task.now(txDispatcher))
+
+    val retriever = mock[BlockRetriever]
+    val blockDispatcher = BlockDispatcher(network, txDispatcher, retriever, InMemoryBlockOffset())
+    val blocksSeq = Seq(
+      FullBlock[ShallowTX](BlockData("0x0", 1L, "{}".asJson), Seq())
+    )
+
+    val t = for {
+      ch <- MVar.empty[Seq[FullBlock[ShallowTX]]]
+      _ <- blockDispatcher.persistence.setLast(1L)
+      dis <- blockDispatcher.init
+      blocks <- Task.now(blocksSeq)
+      newDis <- BlockConsumer.consumeBlocks(blocks, dis)
+    } yield {
+      newDis.offset.shouldEqual(1L)
+    }
+    t.runSyncUnsafe(1.second)
 
   }
 
   ignore should "replay missing blocks and then dispatch latest blocks" in {
 
   }
+
+
 }

@@ -58,11 +58,12 @@ class BlockDispatcherSpec extends FlatSpec with MockFactory with Matchers {
     }).runSyncUnsafe(timeout)
   }
 
-  it should "increase offset in persistence when block acknowledged by tx dispatcher" in successDispatch { task =>
+  it should "increase offset in persistence and state when block acknowledged by tx dispatcher" in successDispatch { task =>
     (for {
       dispatcher <- task.map(_.blockDispatcher)
       lastOffset <- dispatcher.get.persistence.getLast
     } yield {
+      dispatcher.get.offset.shouldEqual(1L)
       lastOffset.shouldEqual(1L)
     }).runSyncUnsafe(timeout)
   }

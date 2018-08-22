@@ -21,6 +21,7 @@ import com.typesafe.scalalogging.LazyLogging
 import monix.eval.{MVar, Task}
 import monix.execution.atomic.AtomicLong
 
+
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
@@ -106,7 +107,7 @@ case class BlockDispatcher(id: String,
     ret <- newDis match {
       case Success(r) =>
         this.persistence.setLast(block.data.number).flatMap {
-          _ => Task(this.copy(tXDispatcher = r))
+          _ => Task(this.copy(tXDispatcher = r, offset = block.data.number))
         }
       case Failure(e) =>
         logger.error("Could not acknowledge block; failure in TXdispatcher", e)

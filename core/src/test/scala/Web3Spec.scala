@@ -25,10 +25,10 @@ import org.scalatest.{FlatSpec, Matchers}
 
 import scala.io.Source
 import scala.concurrent.duration._
+import Fixtures._
+import com.reebo.ethsync.core.EthRequests._
 
 object Fixtures {
-
-  import com.reebo.ethsync.core.EthRequests._
 
   def SubscriptionResponseOk(id: String, filterId: String): String =
     RPCResponse("2.0", Some(id), filterId).asJson.noSpaces
@@ -47,8 +47,6 @@ object Fixtures {
 }
 
 class Web3Spec extends FlatSpec with Matchers {
-
-  import Fixtures._
 
   behavior of "Web3"
 
