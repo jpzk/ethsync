@@ -27,20 +27,21 @@ import scala.util.{Failure, Success, Try}
 /**
   * Consumer methods for new blocks passed via MVar
   */
-object BlockDispatcher extends LazyLogging {
+object BlockConsumer extends LazyLogging {
 
   /**
     * Consume block by block, changing the block dispatcher state
     *
-    * @param blocks
-    * @param dis
+    * @param blocks blocks from MVar channel
+    * @param dis    current block dispatcher state
     * @return
     */
   def consumeBlocks(blocks: Seq[FullBlock[ShallowTX]], dis: BlockDispatcher):
   Task[BlockDispatcher] = blocks match {
     case xs :: tail => for {
-      _ <- Task.now(logger.info("Consuming block", xs))
-      dis <- dis.dispatchBlock(xs)
+      _ <- Task.now(logger.info(s"Consuming block in ${dis.id}", xs))
+      replayed <- Replay.until(dis, xs) // replay missing blocks (recursive)
+      dis <- replayed.dispatchBlock(xs)
       ret <- consumeBlocks(tail, dis)
     } yield ret
     case Nil => Task.now(dis)
@@ -50,14 +51,14 @@ object BlockDispatcher extends LazyLogging {
     * Takes blocks from MVar producer-consumer bridge or sets
     * a tick to TXDispatcher to retry fetching transaction receipts.
     *
-    * @param ch
-    * @param dis
+    * @param ch  communication channel for block updates
+    * @param dis current state of block dispatcher
     * @return
     */
   def consumer(ch: MVar[Seq[FullBlock[ShallowTX]]], dis: BlockDispatcher):
   Task[Unit] = {
     for {
-      _ <- Task.now(logger.info("Block dispatcher waiting for blocks"))
+      _ <- Task.now(logger.info(s"Block dispatcher waiting for blocks in ${dis.id}"))
       blocks <- ch.take
       dispatcher <- consumeBlocks(blocks.sortBy(_.data.number), dis)
       run <- consumer(ch, dispatcher)
@@ -69,11 +70,11 @@ object BlockDispatcher extends LazyLogging {
   * Retrieves new incoming blocks; but it is also checking if there are blocks
   * missing between the last time it was running and then fetches those blocks.
   *
-  * @param id network name
+  * @param id           network name
   * @param tXDispatcher transaction dispatcher to use
-  * @param retriever retriever for blocks (when need to replay blocks)
-  * @param persistence block offset persistence (fault tolerance)
-  * @param offset current block offset
+  * @param retriever    retriever for blocks (when need to replay blocks)
+  * @param persistence  block offset persistence (fault tolerance)
+  * @param offset       current block offset
   */
 case class BlockDispatcher(id: String,
                            tXDispatcher: TXDispatcher,
@@ -125,6 +126,41 @@ case class BlockDispatcher(id: String,
     newTxDispatcher <- sTxDispatcher.dispatch.materialize // could fail IO
   } yield newTxDispatcher
 }
+
+
+object Replay extends LazyLogging {
+
+  /**
+    * Recursive function to retrieve and dispatch block sequentially.
+    *
+    * @param m   sequence of missing blocks
+    * @param dis current block dispatcher state
+    * @return
+    */
+  def replay(dis: BlockDispatcher, m: Seq[Long]): Task[BlockDispatcher] = m match {
+    case xs :: tail => for {
+      block <- dis.retriever.getBlock(xs)
+      _ <- Task {
+        logger.info(s"Retrieved block $xs for replay in ${dis.id}")
+      }
+      newDis <- dis.dispatchBlock(block)
+      run <- replay(newDis, tail)
+    } yield run
+    case Nil => Task.now(dis)
+  }
+
+  /**
+    * This should a ordered, sequence fetching of blocks
+    *
+    * @return
+    */
+  def until(dis: BlockDispatcher, block: FullBlock[ShallowTX]): Task[BlockDispatcher] =
+    Range.Long.inclusive(dis.offset + 1, block.data.number - 1, 1).toSeq match {
+      case m if m.nonEmpty => replay(dis, m)
+      case _ => Task.now(dis)
+    }
+}
+
 
 trait BlockOffsetPersistence {
   def setLast(height: Long): Task[Unit]

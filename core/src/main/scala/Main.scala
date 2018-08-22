@@ -84,7 +84,7 @@ object Setup extends LazyLogging {
       ch <- MVar.empty[Seq[FullBlock[ShallowTX]]]
       initialized <- blockDispatcher.init
       producer = nodes.head.subscribeBlocks(ch).executeOn(prodScheduler)
-      consumer = BlockDispatcher.consumer(ch, initialized).executeOn(consumerScheduler)
+      consumer = BlockConsumer.consumer(ch, initialized).executeOn(consumerScheduler)
       both <- Task.parMap2(producer, consumer) { case (_, r) => r }
     } yield both
   }

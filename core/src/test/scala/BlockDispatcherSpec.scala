@@ -138,6 +138,19 @@ class BlockDispatcherSpec extends FlatSpec with MockFactory with Matchers {
     } yield TestParameters(dis, txDispatcher, retriever, persistence))
   }
 
+  def switchReplay(test: Task[TestParameters] => Any): Unit = {
+    val txDispatcher = mock[TXDispatcher]
+    (txDispatcher.init _).expects().returns(Task.now(txDispatcher))
+
+    val retriever = mock[BlockRetriever]
+    val persistence = InMemoryBlockOffset()
+    val dispatcher = BlockDispatcher("id", txDispatcher, retriever, persistence)
+    test(for {
+      _ <- persistence.setLast(1L)
+      dis <- dispatcher.init.materialize
+    } yield TestParameters(dis, txDispatcher, retriever, persistence))
+  }
+
   def scenario(tXDispatcher: TXDispatcher,
                retriever: BlockRetriever,
                persistence: BlockOffsetPersistence): Task[BlockDispatcher] = {

@@ -16,10 +16,14 @@
   */
 package com.reebo.ethsync.core
 
+import java.nio.ByteBuffer
+
 import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
+import com.softwaremill.sttp.SttpBackend
 import com.typesafe.scalalogging.Logger
 import io.circe.Json
 import monix.eval.{MVar, Task}
+import monix.reactive.Observable
 
 import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
@@ -35,7 +39,7 @@ object ClusterProtocol {
     /**
       * Getting transaction receipt for a specific transaction hash
       *
-      * @param hash
+      * @param hash transaction hash
       * @return
       */
     def getTransactionReceipt(hash: String): Task[Try[Json]]
@@ -44,15 +48,15 @@ object ClusterProtocol {
       * Subscribe task, it is a producer communicating via consumer
       * through MVar, run a on seperate scheduler.
       *
-      * @param ch
+      * @param ch channel between subscription and e.g. block dispatcher
       * @return producer running on supplied scheduler
       */
     def subscribeBlocks(ch: MVar[Seq[FullBlock[ShallowTX]]]): Task[Unit]
   }
-
 }
 
 object Protocol {
+  type HTTPBackend = SttpBackend[Task, Observable[ByteBuffer]]
   type UndispatchedTXs = Seq[ShallowTX]
 
   case class FullTX(data: TXData, receipt: Json) extends TX {

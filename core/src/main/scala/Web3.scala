@@ -16,20 +16,17 @@
   */
 package com.reebo.ethsync.core
 
-import java.nio.ByteBuffer
-
 import com.reebo.ethsync.core.ClusterProtocol.Node
 import com.reebo.ethsync.core.EthRequests._
 import com.reebo.ethsync.core.JSONDecoder._
 import com.reebo.ethsync.core.Protocol._
-import com.softwaremill.sttp.{SttpBackend, _}
+import com.softwaremill.sttp._
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import monix.eval.{MVar, Task}
-import monix.reactive.Observable
 
 import scala.concurrent.duration._
 import scala.util.Try
@@ -38,12 +35,12 @@ import scala.util.Try
   * Abstraction of Ethereum client node using JSON-RPC, it is fault-tolerant e.g.
   * re-subscribes when subscription is lost.
   *
-  * @param idName
-  * @param url
-  * @param backend
+  * @param idName  identifier of node
+  * @param url     url of node e.g. http://localhost:5454
+  * @param backend HTTP backend
   */
-case class Web3Node(idName: String, url: String)
-                   (implicit backend: SttpBackend[Task, Observable[ByteBuffer]]) extends Node with LazyLogging {
+case class Web3Node(idName: String, url: String)(implicit backend: HTTPBackend)
+  extends Node with LazyLogging {
 
   override val id: String = idName
   val underlying = Web3(url)
@@ -51,7 +48,7 @@ case class Web3Node(idName: String, url: String)
   /**
     * Getting transaction receipt for a specific transaction hash
     *
-    * @param hash
+    * @param hash transaction hash
     * @return
     */
   override def getTransactionReceipt(hash: String): Task[Try[Json]] =
@@ -60,8 +57,8 @@ case class Web3Node(idName: String, url: String)
   /**
     * Polls block updates in a loop until it retrieves updates
     *
-    * @param filterId
-    * @return
+    * @param filterId filter id, previously subscribe via underlying.subscribe()
+    * @return sequence of block hashes that are new, since last poll
     */
   private def poll(filterId: String): Task[Seq[String]] = for {
     hashes <- underlying.getBlockUpdates(filterId)
@@ -90,7 +87,6 @@ case class Web3Node(idName: String, url: String)
         }
       }
     }
-
     val number = java.lang.Long.parseLong(b.number.drop(2).trim(), 16)
     FullBlock(BlockData(
       b.hash,
@@ -99,11 +95,19 @@ case class Web3Node(idName: String, url: String)
     ), txs)
   }
 
+  /**
+    * Polling-loop, getting new hashes and get blocks, putting them into
+    * the MVar to be consume by a BlockDispatcher.
+    *
+    * @param filterId filterId of subscription
+    * @param ch channel between subscription and block dispatcher
+    * @return
+    */
   def subscribeLoop(filterId: String, ch: MVar[Seq[FullBlock[ShallowTX]]]): Task[Unit] = for {
     hashes <- poll(filterId)
-    blocks <- Task.gatherUnordered(hashes.map(underlying.getBlockWithHash(_))) // transform blocks
+    blocks <- Task.gatherUnordered(hashes.map(underlying.getBlockWithHash(_)))
     bs <- Task.now(blocks.map(convert))
-    _ <- ch.put(bs) // putting blocks
+    _ <- ch.put(bs)
     ret <- subscribeLoop(filterId, ch)
   } yield ret
 
@@ -122,16 +126,6 @@ case class Web3Node(idName: String, url: String)
   } yield ret
 }
 
-object JSONDecoder {
-  implicit def decodeEither[A, B](implicit decoderA: Decoder[A], decoderB: Decoder[B]):
-  Decoder[Either[A, B]] = {
-    c: HCursor =>
-      c.as[A] match {
-        case Right(a) => Right(Left(a))
-        case _ => c.as[B].map(Right(_))
-      }
-  }
-}
 
 /**
   * Web3 JSON-RPC connector for Ethereum clients
@@ -141,27 +135,27 @@ object JSONDecoder {
   */
 case class Web3(url: String) extends LazyLogging {
 
-  type Backend = SttpBackend[Task, Observable[ByteBuffer]]
-
   /**
     * Subscribing to new blocks
     *
-    * @param backend
+    * @param inject  mocking HTTP response
+    * @param backend HTTP backend
     * @return filterId
     */
   def subscribe(inject: Option[String] = None)
-               (implicit backend: Backend): Task[String] =
+               (implicit backend: HTTPBackend): Task[String] =
     send[Unit, String](subscribeBlocks, inject)
 
   /**
     * Polling for new blocks
     *
     * @param filterId
-    * @param backend
+    * @param inject  mocking HTTP response
+    * @param backend HTTP backend
     * @return hashes of new blocks
     */
   def getBlockUpdates(filterId: String, inject: Option[String] = None)
-                     (implicit backend: Backend): Task[Seq[String]] =
+                     (implicit backend: HTTPBackend): Task[Seq[String]] =
     send[Seq[String], Either[String, Seq[String]]](
       pollChanges(filterId), inject) map {
       case Left(h) => Seq(h)
@@ -177,9 +171,8 @@ case class Web3(url: String) extends LazyLogging {
     * @return
     */
   def getTXReceipt(hash: String, inject: Option[String] = None)
-                  (implicit backend: Backend): Task[Json] = {
+                  (implicit backend: HTTPBackend): Task[Json] =
     send[Seq[String], Json](EthRequests.getTXReceipt(hash), inject)
-  }
 
   /**
     * Getting block with hash
@@ -190,7 +183,7 @@ case class Web3(url: String) extends LazyLogging {
     * @return
     */
   def getBlockWithHash(hash: String, inject: Option[String] = None)
-                      (implicit backend: Backend): Task[RawBlock] = {
+                      (implicit backend: HTTPBackend): Task[RawBlock] =
     send[(String, Boolean), Json](getBlock(hash), inject).map { json =>
       val cursor = json.hcursor
       val number = cursor.downField("number").as[String]
@@ -199,23 +192,21 @@ case class Web3(url: String) extends LazyLogging {
         .getOrElse(throw new Exception("Cannot decode"))
       RawBlock(hash, number, json)
     }
-  }
 
-
-  private def base(implicit backend: Backend) =
+  private def base(implicit backend: HTTPBackend) =
     sttp
       .header("Content-Type", "application/json")
       .post(uri"$url")
 
   private def request(body: String)
-                     (implicit backend: Backend) = base
+                     (implicit backend: HTTPBackend) = base
     .body(body)
     .response(asString)
     .send()
     .map(_.unsafeBody)
 
   private def injected(inject: Option[String], body: String)
-                      (implicit backend: Backend) = inject match {
+                      (implicit backend: HTTPBackend) = inject match {
     case Some(i) => Task.now(i)
     case None => request(body)
   }
@@ -238,7 +229,7 @@ case class Web3(url: String) extends LazyLogging {
 
   private def send[T: Encoder, V: Decoder](req: RPCRequest[T],
                                            inject: Option[String] = None)
-                                          (implicit backend: Backend) = for {
+                                          (implicit backend: HTTPBackend) = for {
     t <- injected(inject, req.asJson.noSpaces)
     parsed <- Task.now(parse(t))
     json <- handleDecodingError(parsed)
@@ -247,5 +238,15 @@ case class Web3(url: String) extends LazyLogging {
     handledRPCError <- handleRPCError(handledError)
     v <- handleDecodingError(handledRPCError.hcursor.downField("result").as[V])
   } yield v
+}
 
+object JSONDecoder {
+  implicit def decodeEither[A, B](implicit decoderA: Decoder[A], decoderB: Decoder[B]):
+  Decoder[Either[A, B]] = {
+    c: HCursor =>
+      c.as[A] match {
+        case Right(a) => Right(Left(a))
+        case _ => c.as[B].map(Right(_))
+      }
+  }
 }
