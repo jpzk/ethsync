@@ -16,15 +16,15 @@
   */
 package com.reebo.ethsync.core.test
 
-import com.reebo.ethsync.core._
 import com.reebo.ethsync.core.Protocol.{BlockData, FullBlock, ShallowTX}
-import monix.eval.{MVar, Task}
+import com.reebo.ethsync.core._
+import io.circe.syntax._
+import monix.eval.Task
+import monix.execution.Scheduler.Implicits.global
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
-import io.circe.generic.auto._
-import io.circe.syntax._
+
 import scala.concurrent.duration._
-import monix.execution.Scheduler.Implicits.global
 
 class BlockConsumerSpec extends FlatSpec with MockFactory with Matchers {
 
@@ -45,7 +45,6 @@ class BlockConsumerSpec extends FlatSpec with MockFactory with Matchers {
     )
 
     val t = for {
-      ch <- MVar.empty[Seq[FullBlock[ShallowTX]]]
       _ <- blockDispatcher.persistence.setLast(1L)
       dis <- blockDispatcher.init
       blocks <- Task.now(blocksSeq)
@@ -57,8 +56,32 @@ class BlockConsumerSpec extends FlatSpec with MockFactory with Matchers {
 
   }
 
-  ignore should "replay missing blocks and then dispatch latest blocks" in {
+  it should "replay missing blocks and then dispatch latest blocks" in {
 
+    val network = "test"
+    val txDispatcher = mock[TXDispatcher]
+    (txDispatcher.init _).expects().returns(Task.now(txDispatcher))
+    (txDispatcher.schedule _).expects(List()).returning(txDispatcher).repeat(2)
+    (txDispatcher.dispatch _).expects().returning(Task.now(txDispatcher)).repeat(2)
+
+    val retriever = mock[BlockRetriever]
+    val missingBlock = FullBlock[ShallowTX](BlockData("0x1", 1L, "{}".asJson), Seq())
+    (retriever.getBlock _).expects(1L).returns(Task.now(missingBlock))
+
+    val blockDispatcher = BlockDispatcher(network, txDispatcher, retriever, InMemoryBlockOffset())
+    val blocksSeq = Seq(
+      FullBlock[ShallowTX](BlockData("0x2", 2L, "{}".asJson), Seq())
+    )
+
+    val t = for {
+      _ <- blockDispatcher.persistence.setLast(0L)
+      dis <- blockDispatcher.init
+      blocks <- Task.now(blocksSeq)
+      newDis <- BlockConsumer.consumeBlocks(blocks, dis)
+    } yield {
+      newDis.offset.shouldEqual(2L)
+    }
+    t.runSyncUnsafe(1.second)
   }
 
 

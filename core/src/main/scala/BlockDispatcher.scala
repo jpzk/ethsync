@@ -128,7 +128,6 @@ case class BlockDispatcher(id: String,
   } yield newTxDispatcher
 }
 
-
 object Replay extends LazyLogging {
 
   /**
@@ -139,15 +138,17 @@ object Replay extends LazyLogging {
     * @return
     */
   def replay(dis: BlockDispatcher, m: Seq[Long]): Task[BlockDispatcher] = m match {
-    case xs :: tail => for {
-      block <- dis.retriever.getBlock(xs)
-      _ <- Task {
-        logger.info(s"Retrieved block $xs for replay in ${dis.id}")
-      }
-      newDis <- dis.dispatchBlock(block)
-      run <- replay(newDis, tail)
-    } yield run
-    case Nil => Task.now(dis)
+    case xs :: tail =>
+      for {
+        block <- dis.retriever.getBlock(xs)
+        _ <- Task {
+          logger.info(s"Retrieved block $xs for replay in ${dis.id}")
+        }
+        newDis <- dis.dispatchBlock(block)
+        run <- replay(newDis, tail)
+      } yield run
+    case Nil =>
+      Task.now(dis)
   }
 
   /**
@@ -156,12 +157,11 @@ object Replay extends LazyLogging {
     * @return
     */
   def until(dis: BlockDispatcher, block: FullBlock[ShallowTX]): Task[BlockDispatcher] =
-    Range.Long.inclusive(dis.offset + 1, block.data.number - 1, 1).toSeq match {
-      case m if m.nonEmpty => replay(dis, m)
+    dis.offset + 1 until block.data.number match {
+      case m if m.nonEmpty => replay(dis, m.toList)
       case _ => Task.now(dis)
     }
 }
-
 
 trait BlockOffsetPersistence {
   def setLast(height: Long): Task[Unit]
