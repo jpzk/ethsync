@@ -17,12 +17,31 @@ lazy val core = (project in file("core")).
         oldStrategy(x)
     }
   ).
+  enablePlugins(DockerPlugin).
+  settings(buildOptions in docker := BuildOptions(cache = false)).
+  settings(
+    dockerfile in docker := {
+      // The assembly task generates a fat JAR file
+      val artifact: File = assembly.value
+      val artifactTargetPath = s"/app/${artifact.name}"
+
+      new Dockerfile {
+        from("anapsix/alpine-java")
+        add(artifact, artifactTargetPath)
+        entryPoint("java", "-jar", artifactTargetPath, "com.reebo.ethsync.core.Main")
+      }
+    }
+  ).
   settings(
     libraryDependencies ++= Seq(
       "io.circe" %% "circe-generic" % "0.9.3",
       "io.monix" %% "monix" % "3.0.0-RC1",
-    ) ++ testDeps ++ sttp ++ log
+    ) ++ testDeps ++ sttp ++ log ++ kafka
   )
+
+lazy val kafka = Seq(
+  "io.monix" %% "monix-kafka-1x" % "1.0.0-RC1"
+)
 
 lazy val testDeps = Seq(
   "org.scalatest" %% "scalatest" % "3.0.4" % Test,
@@ -42,4 +61,5 @@ lazy val log = Seq(
   "net.logstash.logback" % "logstash-logback-encoder" % "4.11",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0"
 )
+
 

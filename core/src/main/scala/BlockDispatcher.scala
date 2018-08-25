@@ -21,7 +21,6 @@ import com.typesafe.scalalogging.LazyLogging
 import monix.eval.{MVar, Task}
 import monix.execution.atomic.AtomicLong
 
-
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
