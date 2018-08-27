@@ -28,6 +28,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 import scala.util.Try
+import scala.runtime.RichLong
 
 object ClusterProtocol {
 
@@ -52,7 +53,17 @@ object ClusterProtocol {
       * @return producer running on supplied scheduler
       */
     def subscribeBlocks(ch: MVar[Seq[FullBlock[ShallowTX]]]): Task[Unit]
+
+
+    /**
+      * Retrieving a block from a node
+      *
+      * @param height block height
+      * @return
+      */
+    def getBlockByHeight(height: Long): Task[FullBlock[ShallowTX]]
   }
+
 }
 
 object Protocol {
@@ -82,7 +93,6 @@ object Protocol {
   sealed trait Block {
     val data: BlockData
   }
-
 }
 
 object EthRequests {
@@ -94,6 +104,11 @@ object EthRequests {
   case class RPCError(jsonrpc: String, error: InternalError)
 
   case class RPCRequest[T](jsonrpc: String, method: String, params: T, id: Option[String] = None)
+
+  def getBlockByHeight(height: Long) = {
+    val hex = s"0x${(new RichLong(height)).toHexString}"
+    RPCRequest("2.0", "eth_getBlockByNumber", (hex, true))
+  }
 
   def getBlock(hash: String) = RPCRequest("2.0", "eth_getBlockByHash", (hash, true))
 

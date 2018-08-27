@@ -28,7 +28,8 @@ lazy val core = (project in file("core")).
       new Dockerfile {
         from("anapsix/alpine-java")
         add(artifact, artifactTargetPath)
-        entryPoint("java", "-jar", artifactTargetPath, "com.reebo.ethsync.core.Main")
+        entryPoint("java", "-Dlogback.configurationFile=/app/logback.xml", "-jar",
+          artifactTargetPath, "com.reebo.ethsync.core.Main")
       }
     }
   ).

@@ -131,7 +131,7 @@ class BlockDispatcherSpec extends FlatSpec with MockFactory with Matchers {
     (txDispatcher.init _).expects().returns(Task.now(txDispatcher))
 
     val retriever = mock[BlockRetriever]
-    val persistence = InMemoryBlockOffset()
+    val persistence = InMemoryBlockOffset(0)
     val dispatcher = BlockDispatcher("id", txDispatcher, retriever, persistence)
     test(for {
       _ <- persistence.setLast(1L)

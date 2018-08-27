@@ -35,11 +35,14 @@ case class Cluster(nodes: Seq[Node] = Seq()) extends LazyLogging {
 
   override def toString = s"Nodes: ${nodes.map(_.id)}"
 
+  def retrieve(node: Node, height: Long): Task[NodeResponse[FullBlock[ShallowTX]]] =
+    node.getBlockByHeight(height).map { response => NodeResponse(node, response) }
+
   /**
     * Lifting a shallow transaction to a full transaction
     *
     * @param node node to use when lifting transaction
-    * @param tx shallow tx to lift to full tx
+    * @param tx   shallow tx to lift to full tx
     * @return
     */
   def liftTX(node: Node, tx: ShallowTX): Task[NodeResponse[FullTX]] = {
@@ -56,6 +59,22 @@ case class Cluster(nodes: Seq[Node] = Seq()) extends LazyLogging {
           Task.raiseError(new Exception("Could not get transaction receipt"))
       }
     } yield NodeResponse(node, res)
+  }
+}
+
+trait BlockRetriever {
+  def getBlock(height: Long): Task[FullBlock[ShallowTX]]
+}
+
+case class ClusterBlockRetriever(cluster: Cluster) extends BlockRetriever {
+
+  def select[A](f: Node => Task[A]): Task[A] = for {
+    node <- Task(cluster.nodes.head)
+    run <- f(node)
+  } yield run
+
+  override def getBlock(height: Long): Task[FullBlock[ShallowTX]] = {
+    select { node => cluster.retrieve(node, height) }.map(_.response)
   }
 }
 

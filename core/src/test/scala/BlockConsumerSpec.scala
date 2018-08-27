@@ -39,7 +39,7 @@ class BlockConsumerSpec extends FlatSpec with MockFactory with Matchers {
     (txDispatcher.dispatch _).expects().returning(Task.now(txDispatcher))
 
     val retriever = mock[BlockRetriever]
-    val blockDispatcher = BlockDispatcher(network, txDispatcher, retriever, InMemoryBlockOffset())
+    val blockDispatcher = BlockDispatcher(network, txDispatcher, retriever, InMemoryBlockOffset(0))
     val blocksSeq = Seq(
       FullBlock[ShallowTX](BlockData("0x0", 1L, "{}".asJson), Seq())
     )

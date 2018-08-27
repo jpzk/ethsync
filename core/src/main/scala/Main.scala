@@ -24,7 +24,11 @@ import com.softwaremill.sttp.asynchttpclient.monix.AsyncHttpClientMonixBackend
 import com.typesafe.scalalogging.LazyLogging
 import monix.eval.{MVar, Task}
 import monix.execution.Scheduler
+import monix.kafka.{KafkaProducer, KafkaProducerConfig}
 import monix.reactive.Observable
+
+import io.circe.generic.auto._
+import io.circe.syntax._
 
 import scala.concurrent.duration._
 import scala.language.implicitConversions
@@ -51,17 +55,26 @@ object Setup extends LazyLogging {
     */
   def materialize(config: Config): Task[Unit] = {
 
-    def sink(tx: FullTX) = Task {
-      logger.info(tx.data.hash)
-    }
-
     val network = config.network
     lazy val prodScheduler = Scheduler.io(name = s"$network-prod")
     lazy val consumerScheduler = Scheduler.io(name = s"$network-consumer")
-    val retryPersistence = BackoffRetry(10, 1.seconds)
-    val retriever = new BlockRetriever {
-      override def getBlock(height: Long): Task[Protocol.FullBlock[ShallowTX]] = ???
+    lazy val kafkaScheduler = Scheduler.io(name = s"$network-kafka")
+
+    // Init
+    val producerCfg = KafkaProducerConfig.default.copy(
+      bootstrapServers = List("kafka:9092")
+    )
+
+    val producer = KafkaProducer[String, String](producerCfg, kafkaScheduler)
+
+    // For sending one message
+    def sink(tx: FullTX) = {
+      logger.info(tx.data.hash)
+      producer.send("transactions", tx.asJson.noSpaces)
+        .map { _ => () }
     }
+
+    val retryPersistence = BackoffRetry(10, 1.seconds)
 
     implicit val sttpBackend: SttpBackend[Task, Observable[ByteBuffer]] =
       AsyncHttpClientMonixBackend()
@@ -70,15 +83,18 @@ object Setup extends LazyLogging {
       .map { case (uri, id) => Web3Node(s"${config.network}$id", uri) }
 
     val cluster = Cluster(nodes)
+    val retriever = ClusterBlockRetriever(cluster)
     val dispatcher = TXDispatcher(config.network,
       AggressiveLifter(cluster),
       sink,
       InMemoryTXPersistence(),
       retryPersistence)
 
-    val blockDispatcher = BlockDispatcher(network, dispatcher,
-      retriever,
-      InMemoryBlockOffset())
+    val blockDispatcher =
+      BlockDispatcher(network, dispatcher,
+        retriever,
+        KafkaBlockOffset(kafkaScheduler)
+      )
 
     for {
       ch <- MVar.empty[Seq[FullBlock[ShallowTX]]]
@@ -94,9 +110,9 @@ object Setup extends LazyLogging {
   * Configuration for a setup
   *
   * @param network network name (could be an identifier)
-  * @param nodes sequence of URI for Ethereum nodes (http://....)
-  * @param kafka sequence of Kafka broker hosts
-  * @param topic topic in Kafka for full transactions
+  * @param nodes   sequence of URI for Ethereum nodes (http://....)
+  * @param kafka   sequence of Kafka broker hosts
+  * @param topic   topic in Kafka for full transactions
   */
 case class Config(network: String,
                   nodes: Seq[String],
@@ -146,6 +162,7 @@ object Config extends LazyLogging {
 
   /**
     * Return a string of ENV variable
+    *
     * @param name
     * @param suffix
     * @return

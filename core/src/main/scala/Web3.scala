@@ -28,6 +28,7 @@ import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import monix.eval.{MVar, Task}
 
+import scala.runtime.RichLong
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -100,7 +101,7 @@ case class Web3Node(idName: String, url: String)(implicit backend: HTTPBackend)
     * the MVar to be consume by a BlockDispatcher.
     *
     * @param filterId filterId of subscription
-    * @param ch channel between subscription and block dispatcher
+    * @param ch       channel between subscription and block dispatcher
     * @return
     */
   def subscribeLoop(filterId: String, ch: MVar[Seq[FullBlock[ShallowTX]]]): Task[Unit] = for {
@@ -111,6 +112,7 @@ case class Web3Node(idName: String, url: String)(implicit backend: HTTPBackend)
     ret <- subscribeLoop(filterId, ch)
   } yield ret
 
+
   /**
     * Subscribe task, it is a producer communicating via consumer
     * through MVar
@@ -119,13 +121,20 @@ case class Web3Node(idName: String, url: String)(implicit backend: HTTPBackend)
     * @param ch
     * @return
     */
-  override def subscribeBlocks(ch: MVar[Seq[FullBlock[ShallowTX]]]):
-  Task[Unit] = for {
+  override def subscribeBlocks(ch: MVar[Seq[FullBlock[ShallowTX]]]): Task[Unit] = for {
     filterId <- underlying.subscribe()
     ret <- subscribeLoop(filterId, ch)
   } yield ret
-}
 
+  /**
+    * Retrieving a block from a node
+    *
+    * @param height block height
+    * @return
+    */
+  override def getBlockByHeight(height: Long): Task[FullBlock[ShallowTX]] =
+    underlying.getBlockByHeight(height).map(convert)
+}
 
 /**
   * Web3 JSON-RPC connector for Ethereum clients
@@ -173,6 +182,25 @@ case class Web3(url: String) extends LazyLogging {
   def getTXReceipt(hash: String, inject: Option[String] = None)
                   (implicit backend: HTTPBackend): Task[Json] =
     send[Seq[String], Json](EthRequests.getTXReceipt(hash), inject)
+
+  /**
+    * Get block by height
+    *
+    * @param height
+    * @param inject
+    * @param backend
+    * @return
+    */
+  def getBlockByHeight(height: Long, inject: Option[String] = None)
+                      (implicit backend: HTTPBackend): Task[RawBlock] =
+    send[(String, Boolean), Json](EthRequests.getBlockByHeight(height), inject).map { json =>
+      val cursor = json.hcursor
+      val number = cursor.downField("number").as[String]
+        .getOrElse(throw new Exception("Cannot decode"))
+      val hash = cursor.downField("hash").as[String]
+        .getOrElse(throw new Exception("Cannot decode"))
+      RawBlock(hash, number, json)
+    }
 
   /**
     * Getting block with hash

@@ -66,6 +66,12 @@ class Web3Spec extends FlatSpec with Matchers {
     res.runSyncUnsafe(1.second).isInstanceOf[RawBlock]
   }
 
+  it should "get block by height when responds ok" in {
+    val response = GetBlockResponseOk
+    val res = w.getBlockByHeight(1L, inject = Some(response))
+    res.runSyncUnsafe(1.second).isInstanceOf[RawBlock]
+  }
+
   it should "get block hash (only one) when responds ok" in {
     val response = NewBlockResponseOk("1", "0x0")
     val res = w.getBlockUpdates("1", Some(response))
