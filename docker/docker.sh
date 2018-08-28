@@ -21,6 +21,12 @@ docker run \
   kafka-topics --create --topic transactions --partitions 1 --replication-factor 1 \
   --if-not-exists --zookeeper zookeeper:2181
 
+docker run \
+  --net=confluent \
+  --rm confluentinc/cp-kafka:4.1.2 \
+  kafka-topics --create --topic block-offset --partitions 1 --replication-factor 1 \
+  --if-not-exists --zookeeper zookeeper:2181
+
 # run ethsync 
 docker run -d \
     --net=confluent \
