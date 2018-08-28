@@ -21,28 +21,48 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.atomic.AtomicLong
 import monix.kafka.{KafkaConsumerConfig, KafkaConsumerObservable, KafkaProducer, KafkaProducerConfig}
+import monix.kafka.Serializer.forJavaLong
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 
 /**
+  * Console application to set the block offset
+  */
+object SettingBlockOffset extends App with LazyLogging {
+  lazy val kafkaScheduler = Scheduler.io(name = s"kafka")
+  val broker = sys.env.getOrElse(s"KAFKA_BROKER", throw new Exception(
+    "Supply kafka brokers"
+  ))
+  val offset = sys.env.getOrElse(s"OFFSET", throw new Exception(
+    "Supply offset with OFFSET"
+  ))
+  val producerCfg = KafkaProducerConfig.default.copy(
+    bootstrapServers = List(broker)
+  )
+  val producer = KafkaProducer[String, java.lang.Long](producerCfg, kafkaScheduler)
+  producer.send("block-offset", offset.toLong)
+    .map { _ => producer.close() }
+    .executeOn(kafkaScheduler)
+}
+
+/**
   * Kafka persistence for block offset
   *
   * @param scheduler
   */
-case class KafkaBlockOffset(scheduler: Scheduler) extends BlockOffsetPersistence with LazyLogging {
-
-  import monix.kafka.Serializer.forJavaLong
+case class KafkaBlockOffset(scheduler: Scheduler, brokers: Seq[String])
+  extends BlockOffsetPersistence with LazyLogging {
 
   val offsetStore = AtomicLong(0L)
 
   val consumerCfg = KafkaConsumerConfig.default.copy(
-    bootstrapServers = List("kafka:9092"),
+    bootstrapServers = brokers.toList,
     groupId = "block-offset"
   )
   val producerCfg = KafkaProducerConfig.default.copy(
-    bootstrapServers = List("kafka:9092")
+    bootstrapServers = brokers.toList
   )
   val producer = KafkaProducer[String, java.lang.Long](producerCfg, scheduler)
   val topicParititon = new TopicPartition("block-offset", 0)
@@ -71,7 +91,7 @@ case class KafkaBlockOffset(scheduler: Scheduler) extends BlockOffsetPersistence
           offsetStore.getAndSet(ret)
         }
     }
-    _ <- consumer.close()
+    _ <- Task.now(consumer.close())
   } yield last
 
   override def setLast(height: Long): Task[Unit] =

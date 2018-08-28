@@ -45,6 +45,7 @@ object Main extends App with LazyLogging {
     }(mainScheduler)
 }
 
+
 object Setup extends LazyLogging {
 
   /**
@@ -60,14 +61,12 @@ object Setup extends LazyLogging {
     lazy val consumerScheduler = Scheduler.io(name = s"$network-consumer")
     lazy val kafkaScheduler = Scheduler.io(name = s"$network-kafka")
 
-    // Init
+    // Sink
     val producerCfg = KafkaProducerConfig.default.copy(
-      bootstrapServers = List("kafka:9092")
+      bootstrapServers = config.kafka.toList
     )
-
     val producer = KafkaProducer[String, String](producerCfg, kafkaScheduler)
 
-    // For sending one message
     def sink(tx: FullTX) = {
       logger.info(tx.data.hash)
       producer.send("transactions", tx.asJson.noSpaces)
@@ -93,7 +92,7 @@ object Setup extends LazyLogging {
     val blockDispatcher =
       BlockDispatcher(network, dispatcher,
         retriever,
-        KafkaBlockOffset(kafkaScheduler)
+        KafkaBlockOffset(kafkaScheduler, config.kafka)
       )
 
     for {
@@ -146,28 +145,14 @@ object Config extends LazyLogging {
       }
   }
 
-  /**
-    * Return an array of ENV variable
-    *
-    * @param name
-    * @param suffix
-    * @return
-    */
-  private def getStrings(name: String, suffix: String) = {
+  def getStrings(name: String, suffix: String) = {
     sys.env.getOrElse(s"${name.toUpperCase()}_$suffix",
       throw new Exception(
         s"${name}_$suffix not found")
     ).split(",")
   }
 
-  /**
-    * Return a string of ENV variable
-    *
-    * @param name
-    * @param suffix
-    * @return
-    */
-  private def getString(name: String, suffix: String) = {
+  def getString(name: String, suffix: String) = {
     sys.env.getOrElse(s"${name.toUpperCase()}_$suffix", throw new Exception(
       s"${name}_$suffix not found"
     ))
