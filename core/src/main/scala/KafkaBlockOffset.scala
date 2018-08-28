@@ -27,10 +27,15 @@ import org.apache.kafka.common.TopicPartition
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 
+import scala.concurrent.duration._
+
 /**
   * Console application to set the block offset
   */
 object SettingBlockOffset extends App with LazyLogging {
+
+  import monix.execution.Scheduler.Implicits.global
+
   lazy val kafkaScheduler = Scheduler.io(name = s"kafka")
   val broker = sys.env.getOrElse(s"KAFKA_BROKER", throw new Exception(
     "Supply kafka brokers"
@@ -44,7 +49,10 @@ object SettingBlockOffset extends App with LazyLogging {
   val producer = KafkaProducer[String, java.lang.Long](producerCfg, kafkaScheduler)
   producer.send("block-offset", offset.toLong)
     .map { _ => producer.close() }
-    .executeOn(kafkaScheduler)
+    .runSyncUnsafe(1.minute)
+    .runOnComplete { _ =>
+      logger.info(s"Set block offset to ${offset.toLong}")
+    }
 }
 
 /**
