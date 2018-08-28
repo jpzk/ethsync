@@ -19,10 +19,7 @@ package com.reebo.ethsync.core
 import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
 import com.typesafe.scalalogging.LazyLogging
 import monix.eval.{MVar, Task}
-import monix.execution.Scheduler
 import monix.execution.atomic.AtomicLong
-import monix.kafka.{KafkaConsumerConfig, KafkaConsumerObservable, KafkaProducer, KafkaProducerConfig}
-import org.apache.kafka.common.TopicPartition
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
@@ -169,58 +166,6 @@ trait BlockOffsetPersistence {
   def setLast(height: Long): Task[Unit]
 
   def getLast: Task[Long]
-}
-
-case class KafkaBlockOffset(scheduler: Scheduler) extends BlockOffsetPersistence with LazyLogging {
-
-  import monix.kafka.Serializer.forJavaLong
-
-  val consumerCfg = KafkaConsumerConfig.default.copy(
-    bootstrapServers = List("kafka:9092"),
-    groupId = "block-offset"
-  )
-
-  // Init
-  val producerCfg = KafkaProducerConfig.default.copy(
-    bootstrapServers = List("kafka:9092")
-  )
-  val producer = KafkaProducer[String, java.lang.Long](producerCfg, scheduler)
-
-  override def setLast(height: Long): Task[Unit] = {
-    producer.send("block-offset", height).map { _ => () }
-  }
-
-  /**
-    * Creates a consumer and gets the last commited block offset from the kafka topic
-    *
-    * @return
-    */
-  override def getLast: Task[Long] = {
-    val topicParititon = new TopicPartition("block-offset", 0)
-    for {
-      _ <- Task(logger.info("Before consumer"))
-      consumer <- KafkaConsumerObservable.createConsumer[String, java.lang.Long](consumerCfg, List("block-offset"))
-      _ <- Task(logger.info("Getting last offset"))
-      lastKafkaOffset <- Task.now(Option(consumer.committed(topicParititon).offset()))
-      lastOffset <- lastKafkaOffset match {
-        case Some(offset) =>
-          Task {
-            logger.info(s"Found last offset ${offset}")
-            offset
-          }
-        case None =>
-          Task {
-            logger.info(s"Did not find offset using 0")
-            0L
-          }
-      }
-      _ <- Task.now(logger.info(s"Last Kafka Offset: ${lastOffset}"))
-      _ <- Task.now(consumer.seek(topicParititon, lastOffset - 1))
-      offset <- Task {
-        consumer.poll(1000)
-      }
-    } yield offset.records("block-offset").iterator().next().value()
-  }
 }
 
 case class InMemoryBlockOffset(initial: Long = 0) extends BlockOffsetPersistence with LazyLogging {
