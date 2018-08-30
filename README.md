@@ -15,19 +15,19 @@ The project aims at minimal code written in modern Scala with Monix, sttp (uses 
 Assuming you have Docker installed on your computer. 
 
 ```$xslt
-sbt docker 
+$ sbt docker 
 ```
 
 When it succeeds, take a look at /docker/docker.sh. And modify the host address of your Ethereum node.
 
 ```$xslt
-docker run -d \
+$ docker run -d \
     --net=confluent \
     --name=ethsync \
     -e MAINNET_NODES=http://localhost:8645 \
     -e MAINNET_BROKERS=kafka:9092 \
     -e MAINNET_TOPIC=transactions \
-com.reebo/core
+    com.reebo/core
 ```
 
 If you changed the environment variables accordingly running the docker/docker.sh script will setup a Zookeeper and a Kafka broker. Further it will create two topics **transactions** and **block-offset**. 
@@ -35,12 +35,12 @@ If you changed the environment variables accordingly running the docker/docker.s
 The transactions topic holds all the transactions ingested from the Ethereum nodes (starting from 0, if no other starting offset is set.). The block-offset topic contains the current acknowledged / committed block-offset. Ethsync will **continue processing from that block-offset when restarted.**
 
 ```$xslt
-sh docker/docker.sh
+$ sh docker/docker.sh
 ```
 
 If you want to validate that ethsync is working properly. You can use the following command to tail the output of the running ethsync docker container.
 ```$xslt
-docker logs -f ethsync
+$ docker logs -f ethsync
 ```
 
 If you want to run ethsync in production, have a look at the bottom of the documentation. It contains valueable information of how to run ethsync properly.
@@ -50,7 +50,7 @@ If you want to run ethsync in production, have a look at the bottom of the docum
 In case you want to change the block offset, you can use the following program. You can pass the desired block offset via an environment variable. Make sure ethsync is not running. 
 
 ```$xslt
-docker run -d \
+$ docker run -d \
     --net=confluent \
     --name=ethsync_setOffset \
     -e KAFKA_BROKER=kafka:9092 \
