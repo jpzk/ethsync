@@ -86,13 +86,13 @@ object Setup extends LazyLogging {
     val dispatcher = TXDispatcher(config.network,
       AggressiveLifter(cluster),
       sink,
-      InMemoryTXPersistence(),
+      new KafkaTXPersistence(kafkaScheduler, config.kafka),
       retryPersistence)
 
     val blockDispatcher =
       BlockDispatcher(network, dispatcher,
         retriever,
-        KafkaBlockOffset(kafkaScheduler, config.kafka)
+        new KafkaBlockOffset(kafkaScheduler, config.kafka)
       )
 
     for {
@@ -145,14 +145,14 @@ object Config extends LazyLogging {
       }
   }
 
-  def getStrings(name: String, suffix: String) = {
+  def getStrings(name: String, suffix: String): Array[String] = {
     sys.env.getOrElse(s"${name.toUpperCase()}_$suffix",
       throw new Exception(
         s"${name}_$suffix not found")
     ).split(",")
   }
 
-  def getString(name: String, suffix: String) = {
+  def getString(name: String, suffix: String): String = {
     sys.env.getOrElse(s"${name.toUpperCase()}_$suffix", throw new Exception(
       s"${name}_$suffix not found"
     ))

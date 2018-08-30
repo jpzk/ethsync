@@ -28,7 +28,6 @@ import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import monix.eval.{MVar, Task}
 
-import scala.runtime.RichLong
 import scala.concurrent.duration._
 import scala.util.Try
 
