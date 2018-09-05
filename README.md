@@ -9,7 +9,6 @@ It uses different persistence backends to store in-flight transactions and the b
 
 The project aims at minimal code written in modern Scala with Monix, sttp (uses Netty) and circe. Hence, it does not require any bigger legacy Java library such as Web3j. Collaboration is highly appreciated. 
 
-
 ## Starting the Test Environment
 
 Assuming you have Docker installed on your computer. 
@@ -45,6 +44,15 @@ $ docker logs -f ethsync
 
 If you want to run ethsync in production, have a look at the bottom of the documentation. It contains valueable information of how to run ethsync properly.
 
+## Configuration (in progress)
+Many values within Ethsync are configurable by changing the associated environment variable.
+
+| Env Variable | Default | Description |
+| -------- | -------- | -------- |
+| MAINNET_NODES | http://localhost:8545 | The ethereum node urls. Comma-seperated |
+| MAINNET_BROKERS | localhost:9092 | Comma-seperated list of Kafka broker hosts |
+| MAINNET_TOPIC | localhost:9092 | Topic of transactions |
+
 ## Setting Block Offset
 
 In case you want to change the block offset, you can use the following program. You can pass the desired block offset via an environment variable. Make sure ethsync is not running. 
@@ -61,3 +69,6 @@ $ docker run -d \
     "com.reebo.ethsync.core.SettingBlockOffset"
 ```
 
+
+## Known Caveats / Issues
+* In multi-instance mode, where there is more than one Eventeum instance in a system, your services are required to handle duplicate messages gracefully, as each instance will broadcast the same events.
