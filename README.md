@@ -9,6 +9,14 @@ It uses different persistence backends to store in-flight transactions and the b
 
 The project aims at minimal code written in modern Scala with Monix, sttp (uses Netty) and circe. Hence, it does not require any bigger legacy Java library such as Web3j. Collaboration is highly appreciated. 
 
+## Main Features
+
+* At-least-once guarantee for blocks, transactions and receipts
+* Fault-tolerant (backed by Kafka brokers)
+* Serialization of transactions and receipts 
+* Compatible with Kafka Connect 
+* Kafka sink
+
 ## Starting the Test Environment
 
 Assuming you have Docker installed on your computer. 
