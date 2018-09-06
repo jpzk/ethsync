@@ -20,17 +20,16 @@ import java.nio.ByteBuffer
 
 import com.reebo.ethsync.core.Protocol.{FullBlock, FullTX, ShallowTX}
 import com.reebo.ethsync.core._
+import com.reebo.ethsync.core.persistence.{InMemoryBlockOffset, InMemoryTXPersistence}
+import com.reebo.ethsync.core.serialization.AvroSerialization
+import com.reebo.ethsync.core.web3.{AggressiveLifter, Cluster, ClusterBlockRetriever, Web3Node}
 import com.softwaremill.sttp.SttpBackend
 import com.softwaremill.sttp.asynchttpclient.monix.AsyncHttpClientMonixBackend
 import com.typesafe.scalalogging.LazyLogging
-import io.circe.generic.auto._
-import io.circe.syntax._
 import monix.eval.{MVar, Task}
 import monix.execution.Scheduler
 import monix.kafka.{KafkaProducer, KafkaProducerConfig}
 import monix.reactive.Observable
-import persistence.{KafkaBlockOffset, KafkaTXPersistence}
-import web3.{AggressiveLifter, Cluster, ClusterBlockRetriever, Web3Node}
 
 import scala.concurrent.duration._
 import scala.language.implicitConversions
@@ -46,7 +45,6 @@ object Main extends App with LazyLogging {
       logger.info("Shutdown.")
     }(mainScheduler)
 }
-
 
 object Setup extends LazyLogging {
 
@@ -67,12 +65,11 @@ object Setup extends LazyLogging {
     val producerCfg = KafkaProducerConfig.default.copy(
       bootstrapServers = config.kafka.toList
     )
-    val producer = KafkaProducer[String, String](producerCfg, kafkaScheduler)
+    val producer = KafkaProducer[String, Array[Byte]](producerCfg, kafkaScheduler)
 
     def sink(tx: FullTX) = {
       logger.info(tx.data.hash)
-      producer.send("transactions", tx.asJson.noSpaces)
-        .map { _ => () }
+      producer.send("transactions", AvroSerialization.toAvro(tx)).map { _ => () }
     }
 
     val retryPersistence = BackoffRetry(10, 1.seconds)
@@ -88,13 +85,13 @@ object Setup extends LazyLogging {
     val dispatcher = TXDispatcher(config.network,
       AggressiveLifter(cluster),
       sink,
-      new KafkaTXPersistence(kafkaScheduler, config.kafka),
+      InMemoryTXPersistence(), //new KafkaTXPersistence(kafkaScheduler, config.kafka),
       retryPersistence)
 
     val blockDispatcher =
       BlockDispatcher(network, dispatcher,
         retriever,
-        new KafkaBlockOffset(kafkaScheduler, config.kafka)
+        InMemoryBlockOffset(6280000) //new KafkaBlockOffset(kafkaScheduler, config.kafka)
       )
 
     for {
