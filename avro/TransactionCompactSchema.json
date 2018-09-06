@@ -1,0 +1,48 @@
+{
+  "type" : "record",
+  "name" : "AvroTransactionCompact",
+  "namespace" : "com.reebo.ethsync.core.serialization",
+  "fields" : [ {
+    "name" : "blockHash",
+    "type" : "bytes"
+  }, {
+    "name" : "blockNumber",
+    "type" : "bytes"
+  }, {
+    "name" : "from",
+    "type" : "bytes"
+  }, {
+    "name" : "gas",
+    "type" : "bytes"
+  }, {
+    "name" : "gasPrice",
+    "type" : "bytes"
+  }, {
+    "name" : "hash",
+    "type" : "bytes"
+  }, {
+    "name" : "input",
+    "type" : "bytes"
+  }, {
+    "name" : "nonce",
+    "type" : "bytes"
+  }, {
+    "name" : "to",
+    "type" : "bytes"
+  }, {
+    "name" : "transactionIndex",
+    "type" : "bytes"
+  }, {
+    "name" : "value",
+    "type" : "bytes"
+  }, {
+    "name" : "v",
+    "type" : "int"
+  }, {
+    "name" : "r",
+    "type" : "bytes"
+  }, {
+    "name" : "s",
+    "type" : "bytes"
+  } ]
+}
