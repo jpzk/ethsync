@@ -26,8 +26,22 @@ case class AvroTransactionCompact(blockHash: Array[Byte], // 32 byte
                            value: Array[Byte], //
                            v: Byte, // 1 Byte (https://github.com/ethereum/go-ethereum/issues/456)
                            r: Array[Byte], // 32 Bytes
-                           s: Array[Byte]) {// 32 Bytes
-}
+                           s: Array[Byte]) // 32 Bytes
+
+case class AvroTransaction(blockHash: String,
+                           blockNumber: Long,
+                           from: String,
+                           gas: Int,
+                           gasPrice: Int,
+                           hash: String,
+                           input: String,
+                           nonce: String,
+                           to: String,
+                           transactionIndex: Int,
+                           value: Long,
+                           v: Byte,
+                           r: String,
+                           s: String)
 
 case class AvroTransactionBundle(hash: String)
 
