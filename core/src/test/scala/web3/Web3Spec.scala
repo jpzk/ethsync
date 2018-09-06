@@ -14,19 +14,19 @@
   * See the License for the specific language governing permissions and
   * limitations under the License.
   */
-package com.reebo.ethsync.core.test
+package com.reebo.ethsync.core.web3
 
-import com.reebo.ethsync.core.{RawBlock, Web3}
+import com.reebo.ethsync.core.EthRequests._
+import com.reebo.ethsync.core.RawBlock
 import com.softwaremill.sttp.asynchttpclient.monix.AsyncHttpClientMonixBackend
 import io.circe.generic.auto._
 import io.circe.syntax._
 import monix.execution.Scheduler.Implicits.global
 import org.scalatest.{FlatSpec, Matchers}
+import com.reebo.ethsync.core.web3.Fixtures._
 
-import scala.io.Source
 import scala.concurrent.duration._
-import Fixtures._
-import com.reebo.ethsync.core.EthRequests._
+import scala.io.Source
 
 object Fixtures {
 

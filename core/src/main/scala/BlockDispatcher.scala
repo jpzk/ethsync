@@ -19,7 +19,6 @@ package com.reebo.ethsync.core
 import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
 import com.typesafe.scalalogging.LazyLogging
 import monix.eval.{MVar, Task}
-import monix.execution.atomic.AtomicLong
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
@@ -162,25 +161,4 @@ object Replay extends LazyLogging {
     }
 }
 
-trait BlockOffsetPersistence {
-  def setLast(height: Long): Task[Unit]
-
-  def getLast: Task[Long]
-}
-
-case class InMemoryBlockOffset(initial: Long = 0) extends BlockOffsetPersistence with LazyLogging {
-
-  val offset = AtomicLong(initial)
-
-  override def setLast(height: Long): Task[Unit] = Task {
-    offset.getAndSet(height)
-    logger.info(s"Set new offset to $height")
-  }
-
-  override def getLast: Task[Long] = Task {
-    val v = offset.get
-    logger.info(s"Got latest offset $v")
-    v
-  }
-}
 

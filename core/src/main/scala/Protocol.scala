@@ -18,7 +18,7 @@ package com.reebo.ethsync.core
 
 import java.nio.ByteBuffer
 
-import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
+import com.reebo.ethsync.core.Protocol.{FullBlock, FullTX, ShallowTX}
 import com.softwaremill.sttp.SttpBackend
 import com.typesafe.scalalogging.Logger
 import io.circe.Json
@@ -63,7 +63,24 @@ object ClusterProtocol {
       */
     def getBlockByHeight(height: Long): Task[FullBlock[ShallowTX]]
   }
+}
 
+trait BlockRetriever {
+  def getBlock(height: Long): Task[FullBlock[ShallowTX]]
+}
+
+trait TXPersistence {
+  def add(txs: Seq[ShallowTX]): Task[Unit]
+
+  def remove(txs: Seq[ShallowTX]): Task[Unit]
+
+  def readAll: Task[Seq[ShallowTX]]
+}
+
+trait BlockOffsetPersistence {
+  def setLast(height: Long): Task[Unit]
+
+  def getLast: Task[Long]
 }
 
 object Protocol {
@@ -127,6 +144,22 @@ case class RawBlock(hash: String, number: String, data: Json)
 trait RetryFilter {
   def retry[A](logger: Logger, source: Task[A]): Task[A]
 }
+
+
+/**
+  * Used to lift ShallowTX to FullTX
+  */
+trait TXLifter {
+  def lift(shallowTX: ShallowTX): Task[Try[FullTX]]
+}
+
+/**
+  * Sink for FullTX
+  */
+trait TXSink {
+  def sink(tx: FullTX): Task[Unit]
+}
+
 
 /**
   * Exponential backoff retry filter

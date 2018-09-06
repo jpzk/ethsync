@@ -14,7 +14,7 @@
   * See the License for the specific language governing permissions and
   * limitations under the License.
   */
-package com.reebo.ethsync.core.test
+package com.reebo.ethsync.core.web3
 
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}

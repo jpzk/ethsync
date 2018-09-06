@@ -19,9 +19,7 @@ package com.reebo.ethsync.core
 import com.reebo.ethsync.core.Protocol._
 import com.typesafe.scalalogging.LazyLogging
 import monix.eval.Task
-import monix.execution.atomic.Atomic
 
-import scala.collection.mutable
 import scala.language.implicitConversions
 import scala.util.{Failure, Try}
 
@@ -144,52 +142,4 @@ case class TXDispatcher(id: String,
   }
 }
 
-trait TXPersistence {
-  def add(txs: Seq[ShallowTX]): Task[Unit]
-
-  def remove(txs: Seq[ShallowTX]): Task[Unit]
-
-  def readAll: Task[Seq[ShallowTX]]
-}
-
-/**
-  * In-memory persistence for testing the TXDispatcher
-  */
-case class InMemoryTXPersistence() extends TXPersistence with LazyLogging {
-  val store = Atomic(mutable.Set[ShallowTX]())
-
-  override def add(txs: Seq[ShallowTX]): Task[Unit] = Task {
-    txs.foreach { tx =>
-      store.getAndTransform { s => s.add(tx); s }
-    }
-    logger.info(s"Added ${txs.size} txs to in-memory tx store")
-  }
-
-  override def remove(txs: Seq[ShallowTX]): Task[Unit] = Task {
-    txs.foreach { tx =>
-      store.getAndTransform { s => s.remove(tx); s }
-    }
-    logger.info(s"Removed ${txs.size} txs from in-memory tx store")
-  }
-
-  override def readAll: Task[Seq[ShallowTX]] = Task {
-    val txs = store.get.toSeq
-    logger.info(s"Read ${txs.size} from in-memory tx store")
-    txs
-  }
-}
-
-/**
-  * Used to lift ShallowTX to FullTX
-  */
-trait TXLifter {
-  def lift(shallowTX: ShallowTX): Task[Try[FullTX]]
-}
-
-/**
-  * Sink for FullTX
-  */
-trait TXSink {
-  def sink(tx: FullTX): Task[Unit]
-}
 

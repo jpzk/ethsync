@@ -14,12 +14,12 @@
   * See the License for the specific language governing permissions and
   * limitations under the License.
   */
-package com.reebo.ethsync.core
+package com.reebo.ethsync.core.web3
 
 import com.reebo.ethsync.core.ClusterProtocol.Node
 import com.reebo.ethsync.core.EthRequests._
-import com.reebo.ethsync.core.JSONDecoder._
 import com.reebo.ethsync.core.Protocol._
+import com.reebo.ethsync.core.{EthRequests, RawBlock}
 import com.softwaremill.sttp._
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.generic.auto._
@@ -27,6 +27,7 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import monix.eval.{MVar, Task}
+import JSONDecoder._
 
 import scala.concurrent.duration._
 import scala.util.Try

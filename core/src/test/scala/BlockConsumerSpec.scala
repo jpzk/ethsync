@@ -18,6 +18,7 @@ package com.reebo.ethsync.core.test
 
 import com.reebo.ethsync.core.Protocol.{BlockData, FullBlock, ShallowTX}
 import com.reebo.ethsync.core._
+import com.reebo.ethsync.core.persistence.InMemoryBlockOffset
 import io.circe.syntax._
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global

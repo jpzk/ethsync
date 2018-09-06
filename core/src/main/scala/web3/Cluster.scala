@@ -14,10 +14,11 @@
   * See the License for the specific language governing permissions and
   * limitations under the License.
   */
-package com.reebo.ethsync.core
+package com.reebo.ethsync.core.web3
 
-import ClusterProtocol._
-import Protocol._
+import com.reebo.ethsync.core.ClusterProtocol.{Node, NodeResponse}
+import com.reebo.ethsync.core.Protocol.{FullBlock, FullTX, ShallowTX}
+import com.reebo.ethsync.core.{BlockRetriever, TXLifter}
 import com.typesafe.scalalogging.LazyLogging
 import monix.eval.Task
 
@@ -62,9 +63,6 @@ case class Cluster(nodes: Seq[Node] = Seq()) extends LazyLogging {
   }
 }
 
-trait BlockRetriever {
-  def getBlock(height: Long): Task[FullBlock[ShallowTX]]
-}
 
 case class ClusterBlockRetriever(cluster: Cluster) extends BlockRetriever {
 

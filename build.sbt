@@ -38,6 +38,7 @@ lazy val core = (project in file("core")).
     libraryDependencies ++= Seq(
       "io.circe" %% "circe-generic" % "0.9.3",
       "io.monix" %% "monix" % "3.0.0-RC1",
+      "com.sksamuel.avro4s" % "avro4s-core_2.12" % "1.9.0"
     ) ++ testDeps ++ sttp ++ log ++ kafka
   )
 

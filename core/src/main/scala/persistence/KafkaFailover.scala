@@ -14,9 +14,10 @@
   * See the License for the specific language governing permissions and
   * limitations under the License.
   */
-package com.reebo.ethsync.core
+package com.reebo.ethsync.core.persistence
 
 import com.reebo.ethsync.core.Protocol.ShallowTX
+import com.reebo.ethsync.core.{BlockOffsetPersistence, TXPersistence}
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.generic.auto._
 import io.circe.parser.parse
@@ -30,34 +31,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration._
 import scala.language.implicitConversions
-
-/**
-  * Console application to set the block offset
-  */
-object SettingBlockOffset extends App with LazyLogging {
-
-  import monix.execution.Scheduler.Implicits.global
-
-  lazy val kafkaScheduler = Scheduler.io(name = s"kafka")
-  val broker = sys.env.getOrElse(s"KAFKA_BROKER", throw new Exception(
-    "Supply kafka brokers"
-  ))
-  val offset = sys.env.getOrElse(s"OFFSET", throw new Exception(
-    "Supply offset with OFFSET"
-  ))
-  val producerCfg = KafkaProducerConfig.default.copy(
-    bootstrapServers = List(broker)
-  )
-  val producer = KafkaProducer[String, java.lang.Long](producerCfg, kafkaScheduler)
-  producer.send("block-offset", offset.toLong)
-    .map { _ => producer.close() }
-    .runSyncUnsafe(1.minute)
-    .runOnComplete { _ =>
-      logger.info(s"Set block offset to ${offset.toLong}")
-    }
-}
 
 /**
   * TXPersistence backed by Kafka, failover persistence for transactions in-flight,

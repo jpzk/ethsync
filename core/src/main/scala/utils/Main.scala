@@ -14,21 +14,23 @@
   * See the License for the specific language governing permissions and
   * limitations under the License.
   */
-package com.reebo.ethsync.core
+package com.reebo.ethsync.core.utils
 
 import java.nio.ByteBuffer
 
 import com.reebo.ethsync.core.Protocol.{FullBlock, FullTX, ShallowTX}
+import com.reebo.ethsync.core._
 import com.softwaremill.sttp.SttpBackend
 import com.softwaremill.sttp.asynchttpclient.monix.AsyncHttpClientMonixBackend
 import com.typesafe.scalalogging.LazyLogging
+import io.circe.generic.auto._
+import io.circe.syntax._
 import monix.eval.{MVar, Task}
 import monix.execution.Scheduler
 import monix.kafka.{KafkaProducer, KafkaProducerConfig}
 import monix.reactive.Observable
-
-import io.circe.generic.auto._
-import io.circe.syntax._
+import persistence.{KafkaBlockOffset, KafkaTXPersistence}
+import web3.{AggressiveLifter, Cluster, ClusterBlockRetriever, Web3Node}
 
 import scala.concurrent.duration._
 import scala.language.implicitConversions
@@ -105,57 +107,3 @@ object Setup extends LazyLogging {
   }
 }
 
-/**
-  * Configuration for a setup
-  *
-  * @param network network name (could be an identifier)
-  * @param nodes   sequence of URI for Ethereum nodes (http://....)
-  * @param kafka   sequence of Kafka broker hosts
-  * @param topic   topic in Kafka for full transactions
-  */
-case class Config(network: String,
-                  nodes: Seq[String],
-                  kafka: Seq[String],
-                  topic: String)
-
-object Config extends LazyLogging {
-
-  /**
-    * Load configs from ENV
-    *
-    * @return sequence of configs of ENV
-    */
-  def load: Seq[Config] = {
-    val networks = Seq("mainnet", "kovan", "rinkeby", "ropsten")
-      .filter { n =>
-        sys.env.isDefinedAt(s"${n.toUpperCase()}_NODES") &&
-          sys.env.isDefinedAt(s"${n.toUpperCase()}_TOPIC")
-      }
-
-    networks
-      .map { n =>
-        (n,
-          getStrings(n, "NODES"),
-          getStrings(n, "BROKERS"),
-          getString(n, "TOPIC"))
-      }
-      .map { case (n, nodes, brokers, topic) =>
-        logger.info(s"Loaded setup for ${n} with ${n.size} nodes, ${brokers.size} brokers.")
-        Config(n, nodes, brokers, topic)
-      }
-  }
-
-  def getStrings(name: String, suffix: String): Array[String] = {
-    sys.env.getOrElse(s"${name.toUpperCase()}_$suffix",
-      throw new Exception(
-        s"${name}_$suffix not found")
-    ).split(",")
-  }
-
-  def getString(name: String, suffix: String): String = {
-    sys.env.getOrElse(s"${name.toUpperCase()}_$suffix", throw new Exception(
-      s"${name}_$suffix not found"
-    ))
-  }
-
-}
