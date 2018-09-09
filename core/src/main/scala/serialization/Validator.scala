@@ -21,6 +21,56 @@ import io.circe.Json
 
 import scala.util.{Failure, Success, Try}
 
+object Validator extends LazyLogging with TransactionValidation {
+
+  import com.reebo.ethsync.core.CirceHelpers._
+  import ValidatorHelpers._
+  import Schemas._
+
+  def json2Transaction(transaction: Json): Try[Transaction] = {
+
+    val c = transaction.hcursor
+    val msg = new Exception("Could not validate") // @todo more precise error msgs
+
+    /**
+      * Decoding a JSON field into the corresponding type with validator
+      *
+      * @param downField fieldName in JSON
+      * @param validator function that validates the field value
+      * @param converter function that converts into type
+      * @tparam T the result type
+      * @return T decoded field of type T
+      */
+    def decode[T](downField: String,
+                  validator: String => Boolean,
+                  converter: String => T): Try[T] = {
+
+      handleDecodingErrorTry(logger, c.downField(downField).as[String])
+        .flatMap { v => if (validator(v)) Success(v) else Failure(msg) }
+        .flatMap { v => Try(converter(v)) }
+    }
+
+    for {
+      blockHash <- decode[String]("blockHash", validateHash, identity)
+      blockNumber <- decode[Long]("blockNumber", validateBlockNumber, hex2Long)
+      from <- decode[String]("from", validateAddress, identity)
+      gas <- decode[Long]("gas", validateGas, hex2Long)
+      gasPrice <- decode[Long]("gasPrice", validateGasPrice, hex2Long)
+      hash <- decode[String]("hash", validateHash, identity)
+      input <- decode[String]("input", validateInput, identity)
+      nonce <- decode[String]("nonce", validateNonce, identity)
+      to <- decode[String]("to", validateAddress, identity)
+      transactionIndex <- decode[Int]("transactionIndex", validateTXIndex, hex2Int)
+      value <- decode[Long]("value", { _ => true }, hex2Long) // @todo add validation
+      v <- decode[Byte]("v", validateV, hex2Byte)
+      r <- decode[String]("r", validateR, identity)
+      s <- decode[String]("s", validateS, identity)
+    } yield Transaction(
+      blockHash, blockNumber, from, gas, gasPrice, hash, input, nonce,
+      to, transactionIndex, value, v, r, s)
+  }
+}
+
 object Schemas {
 
   case class Receipt(blockHash: String,
@@ -72,7 +122,7 @@ object ValidatorHelpers {
     * @param bytes
     * @return
     */
-  def fitsXBytes(hex: String, bytes: Int) =
+  def fitsXBytes(hex: String, bytes: Int): Boolean =
     BigInt(hex.drop(2), 16).toByteArray.length <= bytes
 
   /**
@@ -82,87 +132,9 @@ object ValidatorHelpers {
     * @param bytes
     * @return
     */
-  def isXBytes(hex: String, bytes: Int) =
+  def isXBytes(hex: String, bytes: Int): Boolean =
     BigInt(hex.drop(2), 16).toByteArray.length <= bytes
 
-}
-
-object Validator extends LazyLogging with TransactionValidation with TransactionConverters {
-
-  import com.reebo.ethsync.core.CirceHelpers._
-  import Schemas._
-
-  def json2Transaction(transaction: Json): Try[Transaction] = {
-
-    val c = transaction.hcursor
-    val msg = new Exception("Could not validate")
-
-    /**
-      * Decoding a JSON field into the corresponding type with validator
-      *
-      * @param downField fieldName in JSON
-      * @param validator function that validates the field value
-      * @param converter function that converts into type
-      * @tparam T the result type
-      * @return T decoded field of type T
-      */
-    def decode[T](downField: String,
-                  validator: String => Boolean,
-                  converter: String => Try[T]): Try[T] = {
-
-      handleDecodingErrorTry(logger, c.downField(downField).as[String])
-        .flatMap { v => if (validator(v)) Success(v) else Failure(msg) }
-        .flatMap { v => converter(v) }
-    }
-
-    for {
-      blockHash <- decode[String]("blockHash", validateHash, Try(_))
-      blockNumber <- decode[Long]("blockNumber", validateBlockNumber, convertLong)
-      from <- decode[String]("from", validateAddress, Try(_))
-      gas <- decode[Long]("gas", validateGas, convertLong)
-      gasPrice <- decode[Long]("gasPrice", validateGasPrice, convertLong)
-      hash <- decode[String]("hash", validateHash, Try(_))
-      input <- decode[String]("input", validateInput, Try(_))
-      nonce <- decode[String]("nonce", validateNonce, Try(_))
-      to <- decode[String]("to", validateAddress, Try(_))
-      transactionIndex <- decode[Int]("transactionIndex", validateTXIndex, convertInt)
-      value <- decode[Long]("value", { _ => true }, convertLong) // @todo add validation
-      v <- decode[Byte]("v", validateV, convertByte)
-      r <- decode[String]("r", validateR, Try(_))
-      s <- decode[String]("s", validateS, Try(_))
-    } yield {
-      Transaction(
-        blockHash,
-        blockNumber,
-        from,
-        gas,
-        gasPrice,
-        hash,
-        input,
-        nonce,
-        to,
-        transactionIndex,
-        value,
-        v,
-        r,
-        s
-      )
-    }
-
-  }
-
-  def receiptJson2Receipt(receipt: Json): Try[Receipt] = ???
-}
-
-trait TransactionConverters {
-
-  import ValidatorHelpers._
-
-  def convertInt(str: String): Try[Int] = Try(hex2Int(str))
-
-  def convertLong(str: String): Try[Long] = Try(hex2Long(str))
-
-  def convertByte(byte: String): Try[Byte] = Try(hex2Byte(byte))
 }
 
 trait TransactionValidation {
