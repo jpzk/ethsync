@@ -16,6 +16,39 @@
   */
 package com.reebo.ethsync.core.test
 
-class ValidatorSpec {
+import com.reebo.ethsync.core.serialization.Validator
+import com.typesafe.scalalogging.LazyLogging
+import io.circe.parser.parse
+import org.scalatest.{FlatSpec, Matchers}
 
+import scala.io.Source
+import scala.util.Try
+
+class ValidatorSpec extends FlatSpec with Matchers with LazyLogging {
+
+  import com.reebo.ethsync.core.CirceHelpers._
+
+  it should "validate all transactions in fixtures as successful" in {
+    val res = Source.fromFile("core/src/test/resources/txs.json").getLines().mkString("")
+
+    handleDecodingErrorTry(logger, parse(res)).flatMap { json =>
+      Try(json.asArray.get)
+    }.flatMap { arr =>
+      Try(arr.foreach { j =>
+        Validator.json2Transaction(j).isSuccess shouldEqual true
+      })
+    }
+  }
+
+  it should "invalidate all transactions in fixtures as unsuccessful" in {
+    val res = Source.fromFile("core/src/test/resources/badinput_txs.json").getLines().mkString("")
+
+    handleDecodingErrorTry(logger, parse(res)).flatMap { json =>
+      Try(json.asArray.get)
+    }.flatMap { arr =>
+      Try(arr.foreach { j =>
+        Validator.json2Transaction(j).isSuccess shouldEqual false
+      })
+    }
+  }
 }

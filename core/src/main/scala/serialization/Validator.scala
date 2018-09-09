@@ -115,26 +115,11 @@ object ValidatorHelpers {
 
   def hex2Bytes(hex: String): Array[Byte] = hex2X(hex, _.toByteArray)
 
-  /**
-    * Returns true if hex value fits into specified bytes
-    *
-    * @param hex
-    * @param bytes
-    * @return
-    */
   def fitsXBytes(hex: String, bytes: Int): Boolean =
     BigInt(hex.drop(2), 16).toByteArray.length <= bytes
 
-  /**
-    * Returns true if hex value is exactly specified bytes
-    *
-    * @param hex
-    * @param bytes
-    * @return
-    */
   def isXBytes(hex: String, bytes: Int): Boolean =
     BigInt(hex.drop(2), 16).toByteArray.length <= bytes
-
 }
 
 trait TransactionValidation {
