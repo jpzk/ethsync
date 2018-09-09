@@ -143,6 +143,7 @@ case class Web3Node(idName: String, url: String)(implicit backend: HTTPBackend)
   *
   */
 case class Web3(url: String) extends LazyLogging {
+  import com.reebo.ethsync.core.CirceHelpers._
 
   /**
     * Subscribing to new blocks
@@ -170,7 +171,6 @@ case class Web3(url: String) extends LazyLogging {
       case Left(h) => Seq(h)
       case Right(hashes) => hashes
     }
-
   /**
     * Getting TX receipt for specific hash
     *
@@ -239,14 +239,6 @@ case class Web3(url: String) extends LazyLogging {
     case None => request(body)
   }
 
-  private def handleDecodingError[T](either: Either[io.circe.Error, T]): Task[T] = {
-    val onError = (error: io.circe.Error) => {
-      logger.error(s"Decoding error ${error.getMessage}")
-      Task.raiseError(new Exception(error.getMessage))
-    }
-    either.fold(onError, Task.now)
-  }
-
   private def handleRPCError[T](either: Either[RPCError, T]) = {
     val onError = (error: RPCError) => {
       logger.error(s"RPC error: ${error.error.message}")
@@ -260,11 +252,11 @@ case class Web3(url: String) extends LazyLogging {
                                           (implicit backend: HTTPBackend) = for {
     t <- injected(inject, req.asJson.noSpaces)
     parsed <- Task.now(parse(t))
-    json <- handleDecodingError(parsed)
+    json <- handleDecodingError(logger, parsed)
     decoded <- Task.now(json.as[Either[RPCError, Json]])
-    handledError <- handleDecodingError(decoded)
+    handledError <- handleDecodingError(logger, decoded)
     handledRPCError <- handleRPCError(handledError)
-    v <- handleDecodingError(handledRPCError.hcursor.downField("result").as[V])
+    v <- handleDecodingError(logger, handledRPCError.hcursor.downField("result").as[V])
   } yield v
 }
 

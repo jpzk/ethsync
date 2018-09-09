@@ -25,7 +25,6 @@ import io.circe.Json
 import monix.eval.{MVar, Task}
 import monix.reactive.Observable
 
-import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 import scala.util.Try
 import scala.runtime.RichLong
@@ -63,6 +62,7 @@ object ClusterProtocol {
       */
     def getBlockByHeight(height: Long): Task[FullBlock[ShallowTX]]
   }
+
 }
 
 trait BlockRetriever {
@@ -110,6 +110,7 @@ object Protocol {
   sealed trait Block {
     val data: BlockData
   }
+
 }
 
 object EthRequests {
@@ -160,33 +161,3 @@ trait TXSink {
   def sink(tx: FullTX): Task[Unit]
 }
 
-
-/**
-  * Exponential backoff retry filter
-  *
-  * @param retries
-  * @param delay
-  */
-case class BackoffRetry(retries: Int, delay: FiniteDuration)
-  extends RetryFilter {
-
-  def retry[A](logger: Logger, source: Task[A]): Task[A] =
-    retryBackoff(logger, source)
-
-  def retryBackoff[A](logger: Logger, source: Task[A],
-                      retries: Int = retries,
-                      delay: FiniteDuration = delay): Task[A] = {
-    source.onErrorHandleWith {
-      case ex: Exception =>
-        if (retries > 0)
-          retryBackoff(logger, source, retries - 1, delay * 2)
-            .delayExecution(delay)
-        else {
-          logger.error(s"SEVERE: ${
-            ex.getMessage
-          }", ex)
-          Task.raiseError(ex)
-        }
-    }
-  }
-}
