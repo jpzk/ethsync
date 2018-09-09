@@ -30,7 +30,7 @@ $ docker run -d \
     --entrypoint "java" \
     com.reebo/core \
     -cp "/app/ethsync.jar" \
-    "com.reebo.ethsync.core.SettingBlockOffset"
+    "com.reebo.ethsync.core.utils.SettingBlockOffset"
 ```
 
 ## Known Caveats / Issues
