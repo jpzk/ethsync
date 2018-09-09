@@ -100,7 +100,6 @@ object Schemas {
                          v: Byte,
                          r: String,
                          s: String)
-
 }
 
 object ValidatorHelpers {
@@ -126,14 +125,13 @@ trait TransactionValidation {
 
   import ValidatorHelpers._
 
-  def startsWith0x(str: String): Boolean =
-    str.startsWith("0x")
+  def isHex(str: String): Boolean = str.matches("0x[0-9A-F]+")
 
   def validateHash(hash: String): Boolean =
-    startsWith0x(hash) && isXBytes(hash, 32)
+    isHex(hash) && isXBytes(hash, 32)
 
   def validateAddress(address: String): Boolean =
-    startsWith0x(address) && isXBytes(address, 20)
+    isHex(address) && isXBytes(address, 20)
 
   def validateBlockNumber(number: String): Boolean =
     fitsXBytes(number, 4)
@@ -145,21 +143,21 @@ trait TransactionValidation {
     fitsXBytes(number, 8)
 
   def validateInput(input: String): Boolean =
-    startsWith0x(input)
+    isHex(input)
 
   def validateNonce(nonce: String): Boolean =
-    startsWith0x(nonce) && fitsXBytes(nonce, 4)
+    isHex(nonce) && fitsXBytes(nonce, 4)
 
   def validateTXIndex(index: String): Boolean =
-    startsWith0x(index) && fitsXBytes(index, 4)
+    isHex(index) && fitsXBytes(index, 4)
 
   def validateV(v: String): Boolean =
-    startsWith0x(v) && isXBytes(v, 1)
+    isHex(v) && isXBytes(v, 1)
 
   def validateR(r: String): Boolean =
-    startsWith0x(r) && isXBytes(r, 32)
+    isHex(r) && isXBytes(r, 32)
 
   def validateS(s: String): Boolean =
-    startsWith0x(s) && isXBytes(s, 32)
+    isHex(s) && isXBytes(s, 32)
 
 }
