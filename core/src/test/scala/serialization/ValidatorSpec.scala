@@ -18,6 +18,7 @@ package com.reebo.ethsync.core.test
 
 import com.reebo.ethsync.core.serialization.Validator
 import com.typesafe.scalalogging.LazyLogging
+import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -28,26 +29,33 @@ class ValidatorSpec extends FlatSpec with Matchers with LazyLogging {
 
   import com.reebo.ethsync.core.CirceHelpers._
 
-  it should "validate all transactions in fixtures as successful" in {
-    val res = Source.fromFile("core/src/test/resources/txs.json").getLines().mkString("")
+  it should "validate all receipts in fixtures as successful" in {
+    validate("core/src/test/resources/receipts.json",
+      Validator.json2Receipt, expectedSuccess = true)
+  }
 
-    handleDecodingErrorTry(logger, parse(res)).flatMap { json =>
-      Try(json.asArray.get)
-    }.flatMap { arr =>
-      Try(arr.foreach { j =>
-        Validator.json2Transaction(j).isSuccess shouldEqual true
-      })
-    }
+  it should "invalidate all receipts in fixtures as unsuccessful" in {
+     validate("core/src/test/resources/badinput_receipts.json",
+      Validator.json2Receipt, expectedSuccess = false)
+  }
+
+  it should "validate all transactions in fixtures as successful" in {
+    validate("core/src/test/resources/txs.json",
+      Validator.json2Transaction, expectedSuccess = true)
   }
 
   it should "invalidate all transactions in fixtures as unsuccessful" in {
-    val res = Source.fromFile("core/src/test/resources/badinput_txs.json").getLines().mkString("")
+    validate("core/src/test/resources/badinput_txs.json",
+      Validator.json2Transaction, expectedSuccess = false)
+  }
 
+  def validate[T](filename: String, f: Json => Try[T], expectedSuccess: Boolean): Try[Unit] = {
+    val res = Source.fromFile(filename).getLines().mkString("")
     handleDecodingErrorTry(logger, parse(res)).flatMap { json =>
       Try(json.asArray.get)
     }.flatMap { arr =>
       Try(arr.foreach { j =>
-        Validator.json2Transaction(j).isSuccess shouldEqual false
+        f(j).isSuccess shouldEqual expectedSuccess
       })
     }
   }

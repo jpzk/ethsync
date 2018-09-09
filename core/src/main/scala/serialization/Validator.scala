@@ -17,92 +17,107 @@
 package com.reebo.ethsync.core.serialization
 
 import com.typesafe.scalalogging.LazyLogging
-import io.circe.Json
+import io.circe.{HCursor, Json}
 
 import scala.util.{Failure, Success, Try}
 
-object Validator extends LazyLogging with TransactionValidation {
+object Validator extends LazyLogging {
 
   import com.reebo.ethsync.core.CirceHelpers._
   import ValidatorHelpers._
   import Schemas._
 
-  def json2Transaction(transaction: Json): Try[Transaction] = {
+  /**
+    * Decoding a JSON field into the corresponding type with validator
+    *
+    * @param cursor    HCursor of JSON
+    * @param downField fieldName in JSON
+    * @param validator function that validates the field value
+    * @param converter function that converts into type
+    * @tparam T the result type
+    * @return T decoded field of type T
+    */
+  private def _decode[T](cursor: HCursor,
+                downField: String,
+                validator: String => Boolean,
+                converter: String => T): Try[T] = {
 
-    val c = transaction.hcursor
     val msg = new Exception("Could not validate") // @todo more precise error msgs
 
-    /**
-      * Decoding a JSON field into the corresponding type with validator
-      *
-      * @param downField fieldName in JSON
-      * @param validator function that validates the field value
-      * @param converter function that converts into type
-      * @tparam T the result type
-      * @return T decoded field of type T
-      */
-    def decode[T](downField: String,
-                  validator: String => Boolean,
-                  converter: String => T): Try[T] = {
+    handleDecodingErrorTry(logger, cursor.downField(downField).as[String])
+      .flatMap { v => if (validator(v)) Success(v) else Failure(msg) }
+      .flatMap { v => Try(converter(v)) }
+  }
 
-      handleDecodingErrorTry(logger, c.downField(downField).as[String])
-        .flatMap { v => if (validator(v)) Success(v) else Failure(msg) }
-        .flatMap { v => Try(converter(v)) }
-    }
+  /**
+    * Converting a transaction JSON (from JSON-RPC) into Transaction case class
+    *
+    * @param transaction as circe Json
+    * @return transaction
+    */
+  def json2Transaction(transaction: Json): Try[Transaction] = {
+    import TransactionValidation._
+    import SharedValidation._
+
+    def decode[T](f: String, v: String => Boolean, c: String => T) =
+      _decode[T](transaction.hcursor, f, v, c)
 
     for {
-      blockHash <- decode[String]("blockHash", validateHash, identity)
-      blockNumber <- decode[Long]("blockNumber", validateBlockNumber, hex2Long)
-      from <- decode[String]("from", validateAddress, identity)
-      gas <- decode[Long]("gas", validateGas, hex2Long)
-      gasPrice <- decode[Long]("gasPrice", validateGasPrice, hex2Long)
-      hash <- decode[String]("hash", validateHash, identity)
-      input <- decode[String]("input", validateInput, identity)
-      nonce <- decode[String]("nonce", validateNonce, identity)
-      to <- decode[String]("to", validateAddress, identity)
-      transactionIndex <- decode[Int]("transactionIndex", validateTXIndex, hex2Int)
+      blockHash <- decode[String]("blockHash", hash, identity)
+      blockNumber <- decode[Long]("blockNumber", blockNumber, hex2Long)
+      from <- decode[String]("from", address, identity)
+      gas <- decode[Long]("gas", gas, hex2Long)
+      gasPrice <- decode[Long]("gasPrice", gasPrice, hex2Long)
+      hash <- decode[String]("hash", hash, identity)
+      input <- decode[String]("input", input, identity)
+      nonce <- decode[String]("nonce", nonce, identity)
+      to <- decode[String]("to", address, identity)
+      transactionIndex <- decode[Int]("transactionIndex", TXIndex, hex2Int)
       value <- decode[Long]("value", { _ => true }, hex2Long) // @todo add validation
-      v <- decode[Byte]("v", validateV, hex2Byte)
-      r <- decode[String]("r", validateR, identity)
-      s <- decode[String]("s", validateS, identity)
+      v <- decode[Byte]("v", v, hex2Byte)
+      r <- decode[String]("r", r, identity)
+      s <- decode[String]("s", s, identity)
     } yield Transaction(
       blockHash, blockNumber, from, gas, gasPrice, hash, input, nonce,
       to, transactionIndex, value, v, r, s)
   }
-}
 
-object Schemas {
+  /**
+    * Converting a receipt JSON (from JSON-RPC) into Receipt case class
+    *
+    * @param receipt as circe Json
+    * @return receipt
+    */
+  def json2Receipt(receipt: Json): Try[Receipt] = {
+    import ReceiptValidation._
+    import SharedValidation._
 
-  case class Receipt(blockHash: String,
-                     blockNumber: Long,
-                     contractAddress: String,
-                     cumulativeGasUsed: Int,
-                     from: String,
-                     gasUsed: Int,
-                     logs: Array[String],
-                     logsBloom: String,
-                     status: Boolean,
-                     to: String,
-                     transactionHash: String,
-                     transactionIndex: Int)
+    def decode[T](f: String, v: String => Boolean, c: String => T) =
+      _decode[T](receipt.hcursor, f, v, c)
 
-  case class Transaction(blockHash: String,
-                         blockNumber: Long,
-                         from: String,
-                         gas: Long,
-                         gasPrice: Long,
-                         hash: String,
-                         input: String,
-                         nonce: String,
-                         to: String,
-                         transactionIndex: Int,
-                         value: Long,
-                         v: Byte,
-                         r: String,
-                         s: String)
+    for {
+      blockHash <- decode[String]("blockHash", hash, identity)
+      blockNumber <- decode[Long]("blockNumber", blockNumber, hex2Long)
+      contractAddress <- decode[String]("contractAddress", contractAddress, identity)
+      cumulativeGasUsed <- decode[Long]("cumulativeGasUsed", cumulativeGasUsed, hex2Long)
+      from <- decode[String]("from", address, identity)
+      gasUsed <- decode[Long]("gasUsed", gasUsed, hex2Long)
+      //logs <- decode[Array[String]]("logs", logs, identity)
+      logsBloom <- decode[String]("logsBloom", logsBloom, identity)
+      status <- decode[Int]("status", status, hex2Int)
+      hash <- decode[String]("hash", hash, identity)
+      to <- decode[String]("to", address, identity)
+      transactionIndex <- decode[Int]("transactionIndex", TXIndex, hex2Int)
+    } yield Receipt(
+      blockHash, blockNumber, contractAddress, cumulativeGasUsed, from,
+      gasUsed, Array(), logsBloom, status, to, hash, transactionIndex
+    )
+  }
 }
 
 object ValidatorHelpers {
+
+  def isHex(str: String): Boolean = str.matches("0x[0-9A-F]+")
 
   def hex2X[T](hex: String, f: BigInt => T) = f(BigInt(hex.drop(2), 16))
 
@@ -121,43 +136,96 @@ object ValidatorHelpers {
     BigInt(hex.drop(2), 16).toByteArray.length <= bytes
 }
 
-trait TransactionValidation {
+object SharedValidation {
 
   import ValidatorHelpers._
 
-  def isHex(str: String): Boolean = str.matches("0x[0-9A-F]+")
-
-  def validateHash(hash: String): Boolean =
+  def hash(hash: String): Boolean =
     isHex(hash) && isXBytes(hash, 32)
 
-  def validateAddress(address: String): Boolean =
+  def address(address: String): Boolean =
     isHex(address) && isXBytes(address, 20)
 
-  def validateBlockNumber(number: String): Boolean =
+  def blockNumber(number: String): Boolean =
     fitsXBytes(number, 4)
 
-  def validateGas(number: String): Boolean =
-    fitsXBytes(number, 8)
-
-  def validateGasPrice(number: String): Boolean =
-    fitsXBytes(number, 8)
-
-  def validateInput(input: String): Boolean =
-    isHex(input)
-
-  def validateNonce(nonce: String): Boolean =
-    isHex(nonce) && fitsXBytes(nonce, 4)
-
-  def validateTXIndex(index: String): Boolean =
+  def TXIndex(index: String): Boolean =
     isHex(index) && fitsXBytes(index, 4)
 
-  def validateV(v: String): Boolean =
+}
+
+object ReceiptValidation {
+
+  import ValidatorHelpers._
+
+  def contractAddress(address: String): Boolean = true // @todo validation
+
+  def cumulativeGasUsed(hex: String): Boolean = isHex(hex) && fitsXBytes(hex, 8)
+
+  def gasUsed(hex: String): Boolean = isHex(hex) && fitsXBytes(hex, 8)
+
+  def logs(hexes: Array[String]): Boolean = hexes.forall(isHex)
+
+  def logsBloom(hex: String): Boolean = isHex(hex)
+
+  def status(hex: String): Boolean = isHex(hex)
+}
+
+object TransactionValidation {
+
+  import ValidatorHelpers._
+
+  def gas(number: String): Boolean =
+    fitsXBytes(number, 8)
+
+  def gasPrice(number: String): Boolean =
+    fitsXBytes(number, 8)
+
+  def input(input: String): Boolean =
+    isHex(input)
+
+  def nonce(nonce: String): Boolean =
+    isHex(nonce) && fitsXBytes(nonce, 4)
+
+  def v(v: String): Boolean =
     isHex(v) && isXBytes(v, 1)
 
-  def validateR(r: String): Boolean =
+  def r(r: String): Boolean =
     isHex(r) && isXBytes(r, 32)
 
-  def validateS(s: String): Boolean =
+  def s(s: String): Boolean =
     isHex(s) && isXBytes(s, 32)
+
+}
+
+object Schemas {
+
+  case class Receipt(blockHash: String,
+                     blockNumber: Long,
+                     contractAddress: String,
+                     cumulativeGasUsed: Long,
+                     from: String,
+                     gasUsed: Long,
+                     logs: Array[String],
+                     logsBloom: String,
+                     status: Int,
+                     to: String,
+                     transactionHash: String,
+                     transactionIndex: Int)
+
+  case class Transaction(blockHash: String,
+                         blockNumber: Long,
+                         from: String,
+                         gas: Long,
+                         gasPrice: Long,
+                         hash: String,
+                         input: String,
+                         nonce: String,
+                         to: String,
+                         transactionIndex: Int,
+                         value: Long,
+                         v: Byte,
+                         r: String,
+                         s: String)
 
 }
