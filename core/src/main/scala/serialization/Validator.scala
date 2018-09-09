@@ -126,28 +126,40 @@ trait TransactionValidation {
 
   import ValidatorHelpers._
 
-  def startsWith0x(str: String): Boolean = str.startsWith("0x")
+  def startsWith0x(str: String): Boolean =
+    str.startsWith("0x")
 
-  def validateHash(hash: String): Boolean = isXBytes(hash, 32)
+  def validateHash(hash: String): Boolean =
+    startsWith0x(hash) && isXBytes(hash, 32)
 
-  def validateAddress(address: String): Boolean = isXBytes(address, 20)
+  def validateAddress(address: String): Boolean =
+    startsWith0x(address) && isXBytes(address, 20)
 
-  def validateBlockNumber(number: String): Boolean = fitsXBytes(number, 4)
+  def validateBlockNumber(number: String): Boolean =
+    fitsXBytes(number, 4)
 
-  def validateGas(number: String): Boolean = fitsXBytes(number, 8)
+  def validateGas(number: String): Boolean =
+    fitsXBytes(number, 8)
 
-  def validateGasPrice(number: String): Boolean = fitsXBytes(number, 8)
+  def validateGasPrice(number: String): Boolean =
+    fitsXBytes(number, 8)
 
-  def validateInput(input: String) = true
+  def validateInput(input: String): Boolean =
+    startsWith0x(input)
 
-  def validateNonce(nonce: String): Boolean = fitsXBytes(nonce, 4)
+  def validateNonce(nonce: String): Boolean =
+    startsWith0x(nonce) && fitsXBytes(nonce, 4)
 
-  def validateTXIndex(index: String): Boolean = fitsXBytes(index, 4)
+  def validateTXIndex(index: String): Boolean =
+    startsWith0x(index) && fitsXBytes(index, 4)
 
-  def validateV(v: String): Boolean = isXBytes(v, 1)
+  def validateV(v: String): Boolean =
+    startsWith0x(v) && isXBytes(v, 1)
 
-  def validateR(r: String): Boolean = isXBytes(r, 32)
+  def validateR(r: String): Boolean =
+    startsWith0x(r) && isXBytes(r, 32)
 
-  def validateS(s: String): Boolean = isXBytes(s, 32)
+  def validateS(s: String): Boolean =
+    startsWith0x(s) && isXBytes(s, 32)
 
 }
