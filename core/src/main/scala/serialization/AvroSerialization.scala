@@ -14,19 +14,19 @@ object AvroHelper {
 
 // Explicit decoding to a data type with a decoder library, since Scala does not support unsigned ints
 case class AvroTransactionCompact(blockHash: Array[Byte], // 32 byte
-                                  blockNumber: Array[Byte], // 6 bytes // 4 bytes, unsigned int
-                                  from: Array[Byte], // 20 Bytes - address of the sender.
-                                  gas: Array[Byte], // 8 bytes, 32-bit, unsigned int
-                                  gasPrice: Array[Byte], // 8 bytes, 32-bit unsigned int
-                                  hash: Array[Byte], // 32 Bytes - hash of the transaction.
-                                  input: Array[Byte], // Dynamic
+                                  blockNumber: Array[Byte], // 4 bytes, unsigned int
+                                  from: Array[Byte], // 20 bytes - address of the sender.
+                                  gas: Array[Byte], // 8 bytes, 64-bit @todo sometimes in documentation 32 bytes
+                                  gasPrice: Array[Byte], // 8 bytes, 64-bit @todo sometimes in documentation 32 bytes
+                                  hash: Array[Byte], // 32 bytes - hash of the transaction.
+                                  input: Array[Byte], // dynamic
                                   nonce: Array[Byte], // 4 bytes, 32-bit, unsigned int
-                                  to: Array[Byte], // 20 Bytes - address of the receiver. null when its a contract creation transaction.
+                                  to: Array[Byte], // 20 bytes - address of the receiver. null when its a contract creation transaction.
                                   transactionIndex: Array[Byte], // 4 bytes, 32-bit integer, index position in the block.
-                                  value: Array[Byte], //
-                                  v: Byte, // 1 Byte (https://github.com/ethereum/go-ethereum/issues/456)
-                                  r: Array[Byte], // 32 Bytes
-                                  s: Array[Byte]) // 32 Bytes
+                                  value: Array[Byte], // 8 bytes, long for now @todo figure out the max of value
+                                  v: Byte, // 1 byte (https://github.com/ethereum/go-ethereum/issues/456)
+                                  r: Array[Byte], // 32 bytes
+                                  s: Array[Byte]) // 32 bytes
 
 case class AvroTransaction(blockHash: String,
                            blockNumber: Long,
