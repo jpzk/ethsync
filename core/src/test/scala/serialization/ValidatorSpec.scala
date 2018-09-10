@@ -16,14 +16,14 @@
   */
 package com.reebo.ethsync.core.test
 
-import com.reebo.ethsync.core.serialization.Validator
+import com.reebo.ethsync.core.serialization.Transformer
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.io.Source
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class ValidatorSpec extends FlatSpec with Matchers with LazyLogging {
 
@@ -31,32 +31,33 @@ class ValidatorSpec extends FlatSpec with Matchers with LazyLogging {
 
   it should "validate all receipts in fixtures as successful" in {
     validate("core/src/test/resources/receipts.json",
-      Validator.json2Receipt, expectedSuccess = true)
+      Transformer.json2Receipt, expectedSuccess = true)
   }
 
   it should "invalidate all receipts in fixtures as unsuccessful" in {
-     validate("core/src/test/resources/badinput_receipts.json",
-      Validator.json2Receipt, expectedSuccess = false)
+    validate("core/src/test/resources/badinput_receipts.json",
+      Transformer.json2Receipt, expectedSuccess = false)
   }
 
   it should "validate all transactions in fixtures as successful" in {
     validate("core/src/test/resources/txs.json",
-      Validator.json2Transaction, expectedSuccess = true)
+      Transformer.json2Transaction, expectedSuccess = true)
   }
 
   it should "invalidate all transactions in fixtures as unsuccessful" in {
     validate("core/src/test/resources/badinput_txs.json",
-      Validator.json2Transaction, expectedSuccess = false)
+      Transformer.json2Transaction, expectedSuccess = false)
   }
 
-  def validate[T](filename: String, f: Json => Try[T], expectedSuccess: Boolean): Try[Unit] = {
+  def validate[T](filename: String, f: Json => Try[T], expectedSuccess: Boolean): Unit = {
     val res = Source.fromFile(filename).getLines().mkString("")
-    handleDecodingErrorTry(logger, parse(res)).flatMap { json =>
-      Try(json.asArray.get)
-    }.flatMap { arr =>
-      Try(arr.foreach { j =>
-        f(j).isSuccess shouldEqual expectedSuccess
-      })
+
+    handleDecodingErrorTry(logger, parse(res)) match {
+      case Success(json) => json.asArray.get.foreach { j =>
+        val result = f(j)
+        result.isSuccess shouldEqual expectedSuccess
+      }
+      case Failure(e) => throw e
     }
   }
 }

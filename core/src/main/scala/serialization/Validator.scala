@@ -17,37 +17,15 @@
 package com.reebo.ethsync.core.serialization
 
 import com.typesafe.scalalogging.LazyLogging
-import io.circe.{HCursor, Json}
+import io.circe.{Decoder, HCursor, Json}
 
 import scala.util.{Failure, Success, Try}
 
-object Validator extends LazyLogging {
+object Transformer extends LazyLogging {
 
+  import Validators._
   import com.reebo.ethsync.core.CirceHelpers._
-  import ValidatorHelpers._
   import Schemas._
-
-  /**
-    * Decoding a JSON field into the corresponding type with validator
-    *
-    * @param cursor    HCursor of JSON
-    * @param downField fieldName in JSON
-    * @param validator function that validates the field value
-    * @param converter function that converts into type
-    * @tparam T the result type
-    * @return T decoded field of type T
-    */
-  private def _decode[T](cursor: HCursor,
-                downField: String,
-                validator: String => Boolean,
-                converter: String => T): Try[T] = {
-
-    val msg = new Exception("Could not validate") // @todo more precise error msgs
-
-    handleDecodingErrorTry(logger, cursor.downField(downField).as[String])
-      .flatMap { v => if (validator(v)) Success(v) else Failure(msg) }
-      .flatMap { v => Try(converter(v)) }
-  }
 
   /**
     * Converting a transaction JSON (from JSON-RPC) into Transaction case class
@@ -56,30 +34,25 @@ object Validator extends LazyLogging {
     * @return transaction
     */
   def json2Transaction(transaction: Json): Try[Transaction] = {
-    import TransactionValidation._
-    import SharedValidation._
-
-    def decode[T](f: String, v: String => Boolean, c: String => T) =
-      _decode[T](transaction.hcursor, f, v, c)
-
+    val c = transaction.hcursor
     for {
-      blockHash <- decode[String]("blockHash", hash, identity)
-      blockNumber <- decode[Long]("blockNumber", blockNumber, hex2Long)
-      from <- decode[String]("from", address, identity)
-      gas <- decode[Long]("gas", gas, hex2Long)
-      gasPrice <- decode[Long]("gasPrice", gasPrice, hex2Long)
-      hash <- decode[String]("hash", hash, identity)
-      input <- decode[String]("input", input, identity)
-      nonce <- decode[String]("nonce", nonce, identity)
-      to <- decode[String]("to", address, identity)
-      transactionIndex <- decode[Int]("transactionIndex", TXIndex, hex2Int)
-      value <- decode[Long]("value", { _ => true }, hex2Long) // @todo add validation
-      v <- decode[Byte]("v", v, hex2Byte)
-      r <- decode[String]("r", r, identity)
-      s <- decode[String]("s", s, identity)
+      blockHash <- decode(c, "blockHash", hash)
+      blockNumber <- decode(c, "blockNumber", blockNumber)
+      from <- decode(c, "from", address)
+      gasIn <- decode(c, "gas", gas)
+      gasPrice <- decode(c, "gasPrice", gas)
+      hash <- decode(c, "hash", hash)
+      input <- decode(c, "input", input)
+      nonce <- decode(c, "nonce", nonce)
+      to <- decode(c, "to", address)
+      transactionIndex <- decode(c, "transactionIndex", TXIndex)
+      value <- decode(c, "value", value)
+      v <- decode(c, "v", v)
+      r <- decode(c, "r", r)
+      s <- decode(c, "s", s)
     } yield Transaction(
-      blockHash, blockNumber, from, gas, gasPrice, hash, input, nonce,
-      to, transactionIndex, value, v, r, s)
+      blockHash, blockNumber, from, gasIn, gasPrice,
+      hash, input, nonce, to, transactionIndex, value, v, r, s)
   }
 
   /**
@@ -89,120 +62,162 @@ object Validator extends LazyLogging {
     * @return receipt
     */
   def json2Receipt(receipt: Json): Try[Receipt] = {
-    import ReceiptValidation._
-    import SharedValidation._
-
-    def decode[T](f: String, v: String => Boolean, c: String => T) =
-      _decode[T](receipt.hcursor, f, v, c)
-
+    val c = receipt.hcursor
     for {
-      blockHash <- decode[String]("blockHash", hash, identity)
-      blockNumber <- decode[Long]("blockNumber", blockNumber, hex2Long)
-      contractAddress <- decode[String]("contractAddress", contractAddress, identity)
-      cumulativeGasUsed <- decode[Long]("cumulativeGasUsed", cumulativeGasUsed, hex2Long)
-      from <- decode[String]("from", address, identity)
-      gasUsed <- decode[Long]("gasUsed", gasUsed, hex2Long)
-      //logs <- decode[Array[String]]("logs", logs, identity)
-      logsBloom <- decode[String]("logsBloom", logsBloom, identity)
-      status <- decode[Int]("status", status, hex2Int)
-      hash <- decode[String]("hash", hash, identity)
-      to <- decode[String]("to", address, identity)
-      transactionIndex <- decode[Int]("transactionIndex", TXIndex, hex2Int)
+      blockHash <- decode(c, "blockHash", hash)
+      blockNumber <- decode(c, "blockNumber", blockNumber)
+      contractAddress <- decode(c, "contractAddress", optionalAddress)
+      cumulativeGasUsed <- decode(c, "cumulativeGasUsed", gas)
+      from <- decode(c, "from", address)
+      gasUsed <- decode(c, "gasUsed", gas)
+      logs <- decode(c, "logs", logs)
+      logsBloom <- decode(c, "logsBloom", logsBloom)
+      status <- decode(c, "status", status)
+      hash <- decode(c, "transactionHash", hash)
+      to <- decode(c, "to", address)
+      transactionIndex <- decode(c, "transactionIndex", TXIndex)
     } yield Receipt(
       blockHash, blockNumber, contractAddress, cumulativeGasUsed, from,
-      gasUsed, Array(), logsBloom, status, to, hash, transactionIndex
+      gasUsed, logs, logsBloom, status, to, hash, transactionIndex
     )
   }
+
+  /**
+    * Decoding a JSON field into the corresponding type with validator
+    *
+    * @param cursor    HCursor of JSON
+    * @param downField fieldName in JSON
+    * @param validator function that validates the field value
+    * @tparam T the result type
+    * @return T decoded field of type T
+    */
+  private def decode[V: Decoder, T](cursor: HCursor, downField: String,
+                                    validator: (String, V) => Either[DomainValidation, T]): Try[T] = for {
+    v <- handleDecodingErrorTry(logger, cursor.downField(downField).as[V])
+    validated <- validator(downField, v).fold(
+      { error =>
+        logger.error(error.errorMessage)
+        Failure(new Exception(error.errorMessage))
+      },
+      { v => Success(v) }
+    )
+  } yield validated
 }
 
-object ValidatorHelpers {
-
-  def isHex(str: String): Boolean = str.matches("0x[0-9A-F]+")
-
-  def hex2X[T](hex: String, f: BigInt => T) = f(BigInt(hex.drop(2), 16))
-
-  def hex2Long(hex: String): Long = hex2X(hex, _.toLong)
-
-  def hex2Int(hex: String): Int = hex2X(hex, _.toInt)
-
-  def hex2Byte(hex: String): Byte = hex2X(hex, _.toByte)
-
-  def hex2Bytes(hex: String): Array[Byte] = hex2X(hex, _.toByteArray)
-
-  def fitsXBytes(hex: String, bytes: Int): Boolean =
-    BigInt(hex.drop(2), 16).toByteArray.length <= bytes
-
-  def isXBytes(hex: String, bytes: Int): Boolean =
-    BigInt(hex.drop(2), 16).toByteArray.length <= bytes
-}
-
-object SharedValidation {
+/**
+  * Validators for transaction and receipts
+  */
+object Validators {
 
   import ValidatorHelpers._
 
-  def hash(hash: String): Boolean =
-    isHex(hash) && isXBytes(hash, 32)
+  sealed trait DomainValidation {
+    def errorMessage: String
+  }
 
-  def address(address: String): Boolean =
-    isHex(address) && isXBytes(address, 20)
+  case class NotHash(field: String, value: String) extends DomainValidation {
+    def errorMessage: String = s"Field $field with value $value is not a hash."
+  }
 
-  def blockNumber(number: String): Boolean =
-    fitsXBytes(number, 4)
+  case class DoesNotFitXBytes(field: String, value: String, bytes: Int) extends DomainValidation {
+    def errorMessage: String = s"Field $field with value $value does not fit $bytes bytes."
+  }
 
-  def TXIndex(index: String): Boolean =
-    isHex(index) && fitsXBytes(index, 4)
+  case class IsNotXBytes(field: String, value: String, bytes: Int) extends DomainValidation {
+    def errorMessage: String = s"Field $field with value $value is not $bytes bytes."
+  }
 
-}
+  def status(field: String, hex: String): Either[DomainValidation, Int] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(fitsXBytes(hex, 1), hex, DoesNotFitXBytes(field, hex, 1))
+    c <- Right(hex2Int(v))
+  } yield c
 
-object ReceiptValidation {
+  def logs(field: String, hexes: Array[String]): Either[DomainValidation, Array[String]] =
+    Either.cond(hexes.forall(isHex), hexes, NotHash(field, hexes.toString))
 
-  import ValidatorHelpers._
+  def logsBloom(field: String, hex: String): Either[DomainValidation, String] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(isXBytes(hex, 256), hex, IsNotXBytes(field, hex, 256))
+  } yield v
 
-  def contractAddress(address: String): Boolean = true // @todo validation
+  def value(field: String, hex: String): Either[DomainValidation, Long] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(fitsXBytes(hex, 8), hex, DoesNotFitXBytes(field, hex, 8))
+    c <- Right(hex2Long(v))
+  } yield c
 
-  def cumulativeGasUsed(hex: String): Boolean = isHex(hex) && fitsXBytes(hex, 8)
+  def hash(field: String, hash: String): Either[DomainValidation, String] = for {
+    _ <- Either.cond(isHex(hash), hash, NotHash(field, hash))
+    v <- Either.cond(isXBytes(hash, 32), hash, IsNotXBytes(field, hash, 32))
+  } yield v
 
-  def gasUsed(hex: String): Boolean = isHex(hex) && fitsXBytes(hex, 8)
+  def optionalAddress(field: String, hex: Option[String]): Either[DomainValidation, Option[String]] =
+    hex match {
+      case Some(h) =>
+        for {
+          _ <- Either.cond(isHex(h), h, NotHash(field, h))
+          v <- Either.cond(isXBytes(h, 20), h, IsNotXBytes(field, h, 20))
+          c <- Right(Some(v))
+        } yield c
+      case None => Right(None)
+    }
 
-  def logs(hexes: Array[String]): Boolean = hexes.forall(isHex)
+  def address(field: String, hex: String): Either[DomainValidation, String] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(isXBytes(hex, 20), hex, IsNotXBytes(field, hex, 20))
+  } yield v
 
-  def logsBloom(hex: String): Boolean = isHex(hex)
+  def blockNumber(field: String, hex: String): Either[DomainValidation, Long] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(fitsXBytes(hex, 4), hex, DoesNotFitXBytes(field, hex, 4))
+    c <- Right(hex2Long(v))
+  } yield c
 
-  def status(hex: String): Boolean = isHex(hex)
-}
+  def TXIndex(field: String, hex: String): Either[DomainValidation, Int] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(fitsXBytes(hex, 4), hex, DoesNotFitXBytes(field, hex, 4))
+    c <- Right(hex2Int(v))
+  } yield c
 
-object TransactionValidation {
+  def gas(field: String, hex: String): Either[DomainValidation, Long] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(fitsXBytes(hex, 8), hex, DoesNotFitXBytes(field, hex, 8))
+    c <- Right(hex2Long(v))
+  } yield c
 
-  import ValidatorHelpers._
+  // @todo add more validation, size
+  def input(field: String, hex: String): Either[DomainValidation, String] = for {
+    v <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+  } yield v
 
-  def gas(number: String): Boolean =
-    fitsXBytes(number, 8)
+  def nonce(field: String, hex: String): Either[DomainValidation, String] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(fitsXBytes(hex, 4), hex, DoesNotFitXBytes(field, hex, 4))
+  } yield v
 
-  def gasPrice(number: String): Boolean =
-    fitsXBytes(number, 8)
+  def v(field: String, hex: String): Either[DomainValidation, Byte] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(isXBytes(hex, 1), hex, IsNotXBytes(field, hex, 1))
+    c <- Right(hex2Byte(v))
+  } yield c
 
-  def input(input: String): Boolean =
-    isHex(input)
+  def r(field: String, hex: String): Either[DomainValidation, String] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(fitsXBytes(hex, 32), hex, DoesNotFitXBytes(field, hex, 32))
+  } yield v
 
-  def nonce(nonce: String): Boolean =
-    isHex(nonce) && fitsXBytes(nonce, 4)
-
-  def v(v: String): Boolean =
-    isHex(v) && isXBytes(v, 1)
-
-  def r(r: String): Boolean =
-    isHex(r) && isXBytes(r, 32)
-
-  def s(s: String): Boolean =
-    isHex(s) && isXBytes(s, 32)
-
+  def s(field: String, hex: String): Either[DomainValidation, String] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(fitsXBytes(hex, 32), hex, DoesNotFitXBytes(field, hex, 32))
+  } yield v
 }
 
 object Schemas {
 
   case class Receipt(blockHash: String,
                      blockNumber: Long,
-                     contractAddress: String,
+                     contractAddress: Option[String],
                      cumulativeGasUsed: Long,
                      from: String,
                      gasUsed: Long,
@@ -228,4 +243,23 @@ object Schemas {
                          r: String,
                          s: String)
 
+}
+
+object ValidatorHelpers {
+
+  def isHex(str: String): Boolean = str.matches("0x[0-9A-Fa-f]*")
+
+  def hex2X[T](hex: String, f: BigInt => T) = f(BigInt(hex.drop(2), 16))
+
+  def hex2Long(hex: String): Long = hex2X(hex, _.toLong)
+
+  def hex2Int(hex: String): Int = hex2X(hex, _.toInt)
+
+  def hex2Byte(hex: String): Byte = hex2X(hex, _.toByte)
+
+  def hex2Bytes(hex: String): Array[Byte] = hex2X(hex, _.toByteArray)
+
+  def fitsXBytes(hex: String, bytes: Int): Boolean = hex.drop(2).length <= bytes * 2
+
+  def isXBytes(hex: String, bytes: Int): Boolean = hex.drop(2).length == bytes * 2
 }
