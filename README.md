@@ -15,7 +15,7 @@ The project aims at minimal code written in modern Scala with Monix, sttp (uses 
 * Fault-tolerant (backed by Kafka brokers)
 * Serialization of transactions and receipts into Avro Binary 
 * Compatible with Kafka Connect due to Avro
-* Kafka sink
+* Input validation (from Nodes)
 
 ## Setting Block Offset
 
