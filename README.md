@@ -11,6 +11,7 @@ The project aims at minimal code written in modern Scala with Monix, sttp (uses 
 
 ## Main Features
 
+* Ready to use Docker image
 * At-least-once guarantee for blocks, transactions and receipts
 * Fault-tolerant (backed by Kafka brokers)
 * Serialization of transactions and receipts into Avro Binary 
