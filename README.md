@@ -18,6 +18,13 @@ The project aims at minimal code written in modern Scala with Monix, sttp (uses 
 * Compatible with Kafka Connect due to Avro
 * Input validation for transaction and receipt objects
 
+## Why is this important?
+
+* Transparency and data access provides trust 
+* Open source allows having no 3rd party dependencies like Infura or Aleth.io
+* Decentralization needs open source tools to extract data
+* Allowing companies to build data product on top of accessible Ethereum data
+
 ## Setting Block Offset
 
 In case you want to change the block offset, you can use the following program. You can pass the desired block offset via an environment variable. Make sure ethsync is not running. 
