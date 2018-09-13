@@ -44,7 +44,7 @@ object Transformer extends LazyLogging {
       hash <- decode(c, "hash", hash)
       input <- decode(c, "input", input)
       nonce <- decode(c, "nonce", nonce)
-      to <- decode(c, "to", address)
+      to <- decode(c, "to", optionalAddress)
       transactionIndex <- decode(c, "transactionIndex", TXIndex)
       value <- decode(c, "value", value)
       v <- decode(c, "v", v)
@@ -109,7 +109,7 @@ object Transformer extends LazyLogging {
       logsBloom <- decode(c, "logsBloom", logsBloom)
       status <- decode(c, "status", status)
       hash <- decode(c, "transactionHash", hash)
-      to <- decode(c, "to", address)
+      to <- decode(c, "to", optionalAddress)
       transactionIndex <- decode(c, "transactionIndex", TXIndex)
     } yield Receipt(
       blockHash, blockNumber, contractAddress, cumulativeGasUsed, from,
@@ -154,7 +154,6 @@ object Transformer extends LazyLogging {
       Failure(iterable.filter(_.isFailure).head.failed.get)
     }
   }
-
 }
 
 /**
@@ -198,7 +197,7 @@ object Validators {
 
   def value(field: String, hex: String): Either[DomainValidation, Long] = for {
     _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
-    v <- Either.cond(fitsXBytes(hex, 8), hex, DoesNotFitXBytes(field, hex, 8))
+    v <- Either.cond(fitsXBytes(hex, 16), hex, DoesNotFitXBytes(field, hex, 16))
     c <- Right(hex2Long(v))
   } yield c
 
@@ -295,7 +294,7 @@ object Schemas {
                      logs: Array[Log],
                      logsBloom: String,
                      status: Int,
-                     to: String,
+                     to: Option[String],
                      transactionHash: String,
                      transactionIndex: Int)
 
@@ -307,7 +306,7 @@ object Schemas {
                          hash: String,
                          input: String,
                          nonce: String,
-                         to: String,
+                         to: Option[String],
                          transactionIndex: Int,
                          value: Long,
                          v: Byte,
