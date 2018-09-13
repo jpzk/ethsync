@@ -25,6 +25,10 @@ The project aims at minimal code written in modern Scala with Monix, sttp (uses 
 * Decentralization needs open source tools to extract data
 * Allowing companies to build data product on top of accessible Ethereum data
 
+## Benchmark 
+
+For storing the transactions and receipt on Kafka in the [FullTransaction](https://github.com/jpzk/ethsync/blob/master/avro/FullTransaction.json) binary format (without schema), on average it takes 1.25kb/TX, 130.5kb/block (on average 100 TX/block) so that for storing the whole Ethereum blockchain until block 6325438, it would take 806.100 Mb or 806 Gb to store. This estimation was done by extracting blocks 5309598 - 5324598.
+
 ## Setting Block Offset
 
 In case you want to change the block offset, you can use the following program. You can pass the desired block offset via an environment variable. Make sure ethsync is not running. 
