@@ -29,11 +29,11 @@ The project aims at minimal code written in modern Scala with Monix, sttp (uses 
 
 ### Replay performance
 
-For sequentially replaying blocks and transaction receipts from one Geth 1.8.11-stable-dea1ce05 node (fast sync) on a Digital Ocean instance 16GB Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz it took on average 160ms per block. Based on this estimation the whole blockchain until 6325523 would take 263 hours or 11 days. This estimation was done by replaying 5349046 - 5350129 (1083 blocks). 
+For sequentially replaying blocks and transaction receipts from one Geth 1.8.11-stable-dea1ce05 node (fast sync) on a Digital Ocean instance 16GB Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz it took on average 160ms per block. Based on this estimation the whole blockchain until 6325523 would take 263 hours or 11 days. This estimation was done by replaying blocks 5349046 - 5350129 (1083 blocks). 
 
 ### Storage
 
-For storing the transactions and receipt on Kafka in the [FullTransaction](https://github.com/jpzk/ethsync/blob/master/avro/FullTransaction.json) binary format (without schema), on average it takes 1.25kb/TX, 130.5kb/block (on average 100 TX/block) so that for storing the whole Ethereum blockchain until block 6325438, we could estimate 806.100 Mb or 806 Gb to store. This estimation was done by replaying blocks 5309598 - 5324598. 
+For storing the transactions and receipt on Kafka in the [FullTransaction](https://github.com/jpzk/ethsync/blob/master/avro/FullTransaction.json) binary format (without schema), on average it takes 1.25kb/TX, 130.5kb/block (on average 100 TX/block) so that for storing the whole Ethereum blockchain until block 6325438, we could estimate 806.100 Mb or 806 Gb to store. This estimation was done by replaying blocks 5309598 - 5324598 (15000 blocks). 
 
 ## Setting Block Offset
 
