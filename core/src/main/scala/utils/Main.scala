@@ -18,7 +18,7 @@ package com.reebo.ethsync.core.utils
 
 import java.nio.ByteBuffer
 
-import com.reebo.ethsync.core.Protocol.{FullBlock, FullTX, ShallowTX}
+import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
 import com.reebo.ethsync.core._
 import com.reebo.ethsync.core.persistence.{InMemoryBlockOffset, InMemoryTXPersistence}
 import com.reebo.ethsync.core.serialization.AvroSerialization
@@ -30,97 +30,99 @@ import monix.eval.{MVar, Task}
 import monix.execution.Scheduler
 import monix.kafka.{KafkaProducer, KafkaProducerConfig}
 import monix.reactive.Observable
-import org.apache.kafka.common.metrics.Metrics
-import com.codahale.metrics.MetricRegistry
-
-import com.codahale.metrics.ConsoleReporter
-import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration._
-import scala.language.implicitConversions
 import scala.util.{Failure, Success}
 
 object Main extends App with LazyLogging {
-  val mainScheduler = Scheduler.io(s"main")
-  Task
-    .gatherUnordered(Config.load.map { c => Setup.materialize(c).executeAsync })
-    .onErrorHandle { err =>
-      logger.error(err.getMessage)
-    }
-    .runOnComplete { _ =>
-      logger.info("Shutdown.")
-    }(mainScheduler)
+  Setup.default(Config.load)
+    .onErrorHandle { err => logger.error(err.getMessage) }
+    .runOnComplete { _ => logger.info("Shutdown.") }(Scheduler.io(s"main"))
 }
 
-object Setup extends LazyLogging {
+object Setup {
+  def default(config: Config): Task[Unit] = {
+    val network = config.networkId
 
-  /**
-    * Materialize Task for one network setup
-    *
-    * @param config
-    * @return
-    */
-  def materialize(config: Config): Task[Unit] = {
-
-    val registry = new MetricRegistry()
-    val reporter = ConsoleReporter.forRegistry(registry)
-      .convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build
-    reporter.start(1, TimeUnit.MINUTES)
-
-    val network = config.network
     lazy val prodScheduler = Scheduler.io(name = s"$network-prod")
     lazy val consumerScheduler = Scheduler.io(name = s"$network-consumer")
     lazy val kafkaScheduler = Scheduler.io(name = s"$network-kafka")
 
-    // Sink
-    val producerCfg = KafkaProducerConfig.default.copy(
-      bootstrapServers = config.kafka.toList
-    )
-    val producer = KafkaProducer[String, Array[Byte]](producerCfg, kafkaScheduler)
-
-    val consumedMeter = registry.meter("fulltx-consumed")
-
-    def sink(tx: FullTX) = {
-      AvroSerialization.toAvro(tx) match {
-        case Success(bytes) =>
-          producer.send("transactions", bytes).map { _ =>
-            consumedMeter.mark() // threadsafe
-            ()
-          }
-
-        case Failure(e) => Task.raiseError(e)
-      }
-    }
-
-    val retryPersistence = BackoffRetry(10, 1.seconds)
-
-    implicit val sttpBackend: SttpBackend[Task, Observable[ByteBuffer]] =
-      AsyncHttpClientMonixBackend()
-
-    val nodes = config.nodes.zip(Range(0, config.nodes.size, 1))
-      .map { case (uri, id) => Web3Node(s"${config.network}$id", uri) }
-
+    val producer = kafka(config.brokers, kafkaScheduler)
+    val sink: TXSink = setupSink(config.format, config.topic, producer)
+    val nodes = setupNodes(network, config.nodes)
     val cluster = Cluster(nodes)
-    val retriever = ClusterBlockRetriever(cluster)
-    val dispatcher = TXDispatcher(config.network,
-      AggressiveLifter(cluster),
-      sink,
-      InMemoryTXPersistence(), //new KafkaTXPersistence(kafkaScheduler, config.kafka),
-      retryPersistence)
-
-    val blockDispatcher =
-      BlockDispatcher(network, dispatcher,
-        retriever,
-        InMemoryBlockOffset(5324598) //new KafkaBlockOffset(kafkaScheduler, config.kafka)
-      )
+    val bDispatcher = BlockDispatcher(network,
+      setupTXDispatcher(network, cluster, sink),
+      ClusterBlockRetriever(cluster),
+      InMemoryBlockOffset(5324598))
 
     for {
       ch <- MVar.empty[Seq[FullBlock[ShallowTX]]]
-      initialized <- blockDispatcher.init
+      initialized <- bDispatcher.init
       producer = nodes.head.subscribeBlocks(ch).executeOn(prodScheduler)
       consumer = BlockConsumer.consumer(ch, initialized).executeOn(consumerScheduler)
       both <- Task.parMap2(producer, consumer) { case (_, r) => r }
     } yield both
   }
+
+  private def setupSink(format: OutputFormat, topic: String,
+                        producer: KafkaProducer[String, Array[Byte]]) = new TXSink {
+    override def sink(tx: Protocol.FullTX): Task[Unit] = {
+      (format match {
+        case FullTransaction => AvroSerialization.full _
+        case CompactTransaction => AvroSerialization.compact _
+      }) (tx) match {
+        case Success(bytes) => producer.send(topic, bytes).map { _ => () }
+        case Failure(e) => Task.raiseError(e)
+      }
+    }
+  }
+
+  private def setupNodes(networkId: String, nodes: Seq[String]): Seq[Web3Node] = {
+    implicit val sttpBackend: SttpBackend[Task, Observable[ByteBuffer]] = AsyncHttpClientMonixBackend()
+    nodes
+      .zip(Range(0, nodes.size, 1))
+      .map { case (uri, id) => Web3Node(s"$networkId-$id", uri) }
+  }
+
+  private def setupTXDispatcher(networkId: String, cluster: Cluster, sink: TXSink) =
+    TXDispatcher(
+      networkId,
+      AggressiveLifter(cluster),
+      sink,
+      InMemoryTXPersistence(),
+      BackoffRetry(10, 1.seconds))
+
+  private def kafka(brokers: Seq[String], scheduler: Scheduler) =
+    KafkaProducer[String, Array[Byte]](KafkaProducerConfig.default.copy(brokers.toList), scheduler)
 }
 
+sealed trait OutputFormat
+
+case object FullTransaction extends OutputFormat
+
+case object CompactTransaction extends OutputFormat
+
+case class Config(networkId: String,
+                  nodes: Seq[String],
+                  brokers: Seq[String],
+                  topic: String,
+                  format: OutputFormat)
+
+object Config {
+  def env(name: String): String = {
+    sys.env.getOrElse(s"${name.toUpperCase()}", throw new Exception(s"${name} not found"))
+  }
+
+  def load: Config =
+    Config(env("NAME"),
+      env("NODES").split(","),
+      env("BROKERS").split(","),
+      env("TOPIC"),
+      env("FORMAT") match {
+        case "full" => FullTransaction
+        case "compact" => CompactTransaction
+        case _ => throw new Exception("Format not supported.")
+      })
+}

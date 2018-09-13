@@ -36,7 +36,9 @@ case class AvroTransactionBundle(hash: String)
 // from JSON to Avro
 object AvroSerialization {
 
-  def toAvro(tx: FullTX): Try[Array[Byte]] = for {
+  def compact(tx: FullTX): Try[Array[Byte]] = ???
+
+  def full(tx: FullTX): Try[Array[Byte]] = for {
     txn <- Transformer.json2Transaction(tx.data.data)
     receipt <- Transformer.json2Receipt(tx.receipt)
   } yield {
