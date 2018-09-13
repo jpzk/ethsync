@@ -30,9 +30,15 @@ import monix.eval.{MVar, Task}
 import monix.execution.Scheduler
 import monix.kafka.{KafkaProducer, KafkaProducerConfig}
 import monix.reactive.Observable
+import org.apache.kafka.common.metrics.Metrics
+import com.codahale.metrics.MetricRegistry
+
+import com.codahale.metrics.ConsoleReporter
+import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration._
 import scala.language.implicitConversions
+import scala.util.{Failure, Success}
 
 object Main extends App with LazyLogging {
   val mainScheduler = Scheduler.io(s"main")
@@ -56,6 +62,11 @@ object Setup extends LazyLogging {
     */
   def materialize(config: Config): Task[Unit] = {
 
+    val registry = new MetricRegistry()
+    val reporter = ConsoleReporter.forRegistry(registry)
+      .convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build
+    reporter.start(1, TimeUnit.MINUTES)
+
     val network = config.network
     lazy val prodScheduler = Scheduler.io(name = s"$network-prod")
     lazy val consumerScheduler = Scheduler.io(name = s"$network-consumer")
@@ -67,9 +78,18 @@ object Setup extends LazyLogging {
     )
     val producer = KafkaProducer[String, Array[Byte]](producerCfg, kafkaScheduler)
 
+    val consumedMeter = registry.meter("fulltx-consumed")
+
     def sink(tx: FullTX) = {
-      logger.info(tx.data.hash)
-      producer.send("transactions", AvroSerialization.toAvro(tx)).map { _ => () }
+      AvroSerialization.toAvro(tx) match {
+        case Success(bytes) =>
+          producer.send("transactions", bytes).map { _ =>
+            consumedMeter.mark() // threadsafe
+            ()
+          }
+
+        case Failure(e) => Task.raiseError(e)
+      }
     }
 
     val retryPersistence = BackoffRetry(10, 1.seconds)
@@ -91,7 +111,7 @@ object Setup extends LazyLogging {
     val blockDispatcher =
       BlockDispatcher(network, dispatcher,
         retriever,
-        InMemoryBlockOffset(6280000) //new KafkaBlockOffset(kafkaScheduler, config.kafka)
+        InMemoryBlockOffset(5324598) //new KafkaBlockOffset(kafkaScheduler, config.kafka)
       )
 
     for {

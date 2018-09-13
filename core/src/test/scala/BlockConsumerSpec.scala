@@ -31,7 +31,7 @@ class BlockConsumerSpec extends FlatSpec with MockFactory with Matchers {
 
   behavior of "BlockConsumer"
 
-  it should "consume blocks and dispatch blocks to TX" in {
+  it should "consume blocks and dispatch blocks to tx dispatcher" in {
 
     val network = "test"
     val txDispatcher = mock[TXDispatcher]

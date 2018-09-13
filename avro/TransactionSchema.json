@@ -1,6 +1,6 @@
 {
   "type" : "record",
-  "name" : "AvroTransaction",
+  "name" : "Transaction",
   "namespace" : "com.reebo.ethsync.core.serialization",
   "fields" : [ {
     "name" : "blockHash",
@@ -13,10 +13,10 @@
     "type" : "string"
   }, {
     "name" : "gas",
-    "type" : "int"
+    "type" : "long"
   }, {
     "name" : "gasPrice",
-    "type" : "int"
+    "type" : "long"
   }, {
     "name" : "hash",
     "type" : "string"

@@ -25,7 +25,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-class ValidatorSpec extends FlatSpec with Matchers with LazyLogging {
+class TransformerSpec extends FlatSpec with Matchers with LazyLogging {
 
   import com.reebo.ethsync.core.CirceHelpers._
 
@@ -55,6 +55,8 @@ class ValidatorSpec extends FlatSpec with Matchers with LazyLogging {
     handleDecodingErrorTry(logger, parse(res)) match {
       case Success(json) => json.asArray.get.foreach { j =>
         val result = f(j)
+        if (result.isFailure && expectedSuccess)
+          throw result.failed.get
         result.isSuccess shouldEqual expectedSuccess
       }
       case Failure(e) => throw e

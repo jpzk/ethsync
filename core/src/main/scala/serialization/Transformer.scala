@@ -18,13 +18,13 @@ package com.reebo.ethsync.core.serialization
 
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.{Decoder, HCursor, Json}
+import com.reebo.ethsync.core.CirceHelpers._
 
 import scala.util.{Failure, Success, Try}
 
 object Transformer extends LazyLogging {
 
   import Validators._
-  import com.reebo.ethsync.core.CirceHelpers._
   import Schemas._
 
   /**
@@ -35,7 +35,7 @@ object Transformer extends LazyLogging {
     */
   def json2Transaction(transaction: Json): Try[Transaction] = {
     val c = transaction.hcursor
-    for {
+    val f = for {
       blockHash <- decode(c, "blockHash", hash)
       blockNumber <- decode(c, "blockNumber", blockNumber)
       from <- decode(c, "from", address)
@@ -53,24 +53,59 @@ object Transformer extends LazyLogging {
     } yield Transaction(
       blockHash, blockNumber, from, gasIn, gasPrice,
       hash, input, nonce, to, transactionIndex, value, v, r, s)
+    f.recoverWith {
+      case e: Exception =>
+        logger.error(s"Error on transaction ${transaction.toString()}: ${e.getMessage}")
+        Failure(e)
+    }
   }
 
   /**
-    * Converting a receipt JSON (from JSON-RPC) into Receipt case class
+    * Converting a log JSON (from JSON-RPC) into Log
+    *
+    * @param log a circe Json
+    * @return
+    */
+  def json2Log(log: Json): Try[Log] = {
+    val c = log.hcursor
+    val f = for {
+      address <- decode(c, "address", address)
+      topics <- decode(c, "topics", topics)
+      data <- decode(c, "data", logData)
+      blockNumber <- decode(c, "blockNumber", blockNumber)
+      transactionHash <- decode(c, "transactionHash", hash)
+      transactionIndex <- decode(c, "transactionIndex", TXIndex)
+      blockHash <- decode(c, "blockHash", hash)
+      logIndex <- decode(c, "logIndex", TXIndex)
+      removed <- decode(c, "removed", booleanValue)
+    } yield Log(address, topics, data, blockNumber, transactionHash,
+      transactionIndex, blockHash, logIndex, removed)
+    f.recoverWith {
+      case e: Exception =>
+        logger.error(s"Error on log ${log.toString()}: ${e.getMessage}")
+        Failure(e)
+    }
+  }
+
+  /**
+    * Converting a receipt JSON (from JSON-RPC) into Receipt
     *
     * @param receipt as circe Json
     * @return receipt
     */
   def json2Receipt(receipt: Json): Try[Receipt] = {
     val c = receipt.hcursor
-    for {
+    val f = for {
       blockHash <- decode(c, "blockHash", hash)
       blockNumber <- decode(c, "blockNumber", blockNumber)
       contractAddress <- decode(c, "contractAddress", optionalAddress)
       cumulativeGasUsed <- decode(c, "cumulativeGasUsed", gas)
       from <- decode(c, "from", address)
       gasUsed <- decode(c, "gasUsed", gas)
-      logs <- decode(c, "logs", logs)
+      logs <- c.values match {
+        case Some(vs) => collectTry(vs.map(json2Log)).map(_.toArray)
+        case None => Success(Array[Log]())
+      }
       logsBloom <- decode(c, "logsBloom", logsBloom)
       status <- decode(c, "status", status)
       hash <- decode(c, "transactionHash", hash)
@@ -80,6 +115,11 @@ object Transformer extends LazyLogging {
       blockHash, blockNumber, contractAddress, cumulativeGasUsed, from,
       gasUsed, logs, logsBloom, status, to, hash, transactionIndex
     )
+    f.recoverWith {
+      case e: Exception =>
+        logger.error(s"Error on receipt ${receipt.toString()}: ${e.getMessage}")
+        Failure(e)
+    }
   }
 
   /**
@@ -95,13 +135,26 @@ object Transformer extends LazyLogging {
                                     validator: (String, V) => Either[DomainValidation, T]): Try[T] = for {
     v <- handleDecodingErrorTry(logger, cursor.downField(downField).as[V])
     validated <- validator(downField, v).fold(
-      { error =>
-        logger.error(error.errorMessage)
-        Failure(new Exception(error.errorMessage))
-      },
+      { error => Failure(new Exception(error.errorMessage)) },
       { v => Success(v) }
     )
   } yield validated
+
+  /**
+    * Failure propagation for recursive structures when parsing
+    *
+    * @param iterable
+    * @tparam T
+    * @return
+    */
+  def collectTry[T](iterable: Iterable[Try[T]]): Try[Iterable[T]] = {
+    if (iterable.forall(_.isSuccess))
+      Success(iterable.map(_.get))
+    else {
+      Failure(iterable.filter(_.isFailure).head.failed.get)
+    }
+  }
+
 }
 
 /**
@@ -116,7 +169,7 @@ object Validators {
   }
 
   case class NotHash(field: String, value: String) extends DomainValidation {
-    def errorMessage: String = s"Field $field with value $value is not a hash."
+    def errorMessage: String = s"Field $field with value $value is not hexadecimal."
   }
 
   case class DoesNotFitXBytes(field: String, value: String, bytes: Int) extends DomainValidation {
@@ -127,14 +180,16 @@ object Validators {
     def errorMessage: String = s"Field $field with value $value is not $bytes bytes."
   }
 
+  def booleanValue(field: String, b: Boolean): Either[DomainValidation, Boolean] = Right(b)
+
+  def topics(field: String, hexes: Array[String]): Either[DomainValidation, Array[String]] =
+    Either.cond(hexes.forall(isHex), hexes, NotHash(field, hexes.toString))
+
   def status(field: String, hex: String): Either[DomainValidation, Int] = for {
     _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
     v <- Either.cond(fitsXBytes(hex, 1), hex, DoesNotFitXBytes(field, hex, 1))
     c <- Right(hex2Int(v))
   } yield c
-
-  def logs(field: String, hexes: Array[String]): Either[DomainValidation, Array[String]] =
-    Either.cond(hexes.forall(isHex), hexes, NotHash(field, hexes.toString))
 
   def logsBloom(field: String, hex: String): Either[DomainValidation, String] = for {
     _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
@@ -191,6 +246,10 @@ object Validators {
     v <- Either.cond(isHex(hex), hex, NotHash(field, hex))
   } yield v
 
+  def logData(field: String, hex: String): Either[DomainValidation, String] = for {
+    v <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+  } yield v
+
   def nonce(field: String, hex: String): Either[DomainValidation, String] = for {
     _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
     v <- Either.cond(fitsXBytes(hex, 4), hex, DoesNotFitXBytes(field, hex, 4))
@@ -215,13 +274,25 @@ object Validators {
 
 object Schemas {
 
+  case class FullTransaction(tx: Transaction, receipt: Receipt)
+
+  case class Log(address: String,
+                 topics: Array[String],
+                 data: String,
+                 blockNumber: Long,
+                 transactionHash: String,
+                 transactionIndex: Int,
+                 blockHash: String,
+                 logIndex: Int,
+                 removed: Boolean)
+
   case class Receipt(blockHash: String,
                      blockNumber: Long,
                      contractAddress: Option[String],
                      cumulativeGasUsed: Long,
                      from: String,
                      gasUsed: Long,
-                     logs: Array[String],
+                     logs: Array[Log],
                      logsBloom: String,
                      status: Int,
                      to: String,
