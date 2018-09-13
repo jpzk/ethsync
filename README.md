@@ -11,11 +11,19 @@ The project aims at minimal code written in modern Scala with Monix, sttp (uses 
 
 ## Main Features
 
+* Ready to use Docker image
 * At-least-once guarantee for blocks, transactions and receipts
 * Fault-tolerant (backed by Kafka brokers)
 * Serialization of transactions and receipts into Avro Binary 
 * Compatible with Kafka Connect due to Avro
-* Kafka sink
+* Input validation for transaction and receipt objects
+
+## Why is this important?
+
+* Transparency and data access provides trust 
+* Open source allows having no 3rd party dependencies like Infura or Aleth.io
+* Decentralization needs open source tools to extract data
+* Allowing companies to build data product on top of accessible Ethereum data
 
 ## Setting Block Offset
 
