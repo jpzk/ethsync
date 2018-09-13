@@ -23,7 +23,7 @@ The project aims at minimal code written in modern Scala with Monix, sttp (uses 
 * Transparency and data access provides trust 
 * Open source allows having no 3rd party dependencies like Infura or Aleth.io
 * Decentralization needs open source tools to extract data
-* Allowing companies to build data product on top of accessible Ethereum data
+* Allowing companies to build data products on top of accessible Ethereum data
 
 ## Benchmark 
 
