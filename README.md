@@ -22,8 +22,23 @@ The project aims at minimal code written in modern Scala with Monix, sttp (uses 
 
 * Transparency and data access provides trust 
 * Open source allows having no 3rd party dependencies like Infura or Aleth.io
-* Decentralization needs open source tools to extract data
 * Allowing companies to build data products on top of accessible Ethereum data
+
+## Quickstart
+
+For testing you can run it in the [Single Node Basic Deployment on Docker ](https://docs.confluent.io/current/installation/docker/docs/installation/single-node-client.html) supplied by confluent. After setting up your Zookeeper, Kafka environment, you can build the Docker image for ethsync locally and run it. Make sure to supply a synced Geth / Parity node in the environment variable NODES.
+
+```
+$ sbt docker
+$ docker run --net=confluent \
+    --name=ethsync \
+    -e NODES=http://178.128.204.30:8545 \
+    -e BROKERS=kafka:9092 \
+    -e TOPIC=transactions \
+    -e FORMAT=full \
+    -e NAME=mainnet \
+    com.reebo/core
+```
 
 ## Benchmark 
 
