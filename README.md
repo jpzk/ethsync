@@ -5,7 +5,7 @@
 
 ethsync is a bridge between Ethereum nodes and Kafka. It stores in-flight transactions and the block offset to ensure at-least-once processing guarantees. Further it acts as a high availability layer for a cluster of Ethereum nodes. In case of crash, it will replay the missing blocks. This makes it ideal for the use in company environments.
 
-The project aims at minimal code written in modern Scala with Monix, sttp (uses Netty) and circe. Hence, it does not require any bigger legacy Java library such as Web3j. Collaboration is highly appreciated. 
+The project aims at minimal code written in modern Scala with Monix, sttp (uses Netty) and circe. It does not depend on Web3j. Collaboration is highly appreciated. 
 
 ## Quickstart
 
