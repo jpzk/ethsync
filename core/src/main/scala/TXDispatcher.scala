@@ -77,18 +77,16 @@ case class TXDispatcher(id: String,
 
   private def logOutput(fullTxs: Seq[FullTX],
                         fails: Seq[ShallowTX],
-                        failWrite: Seq[ShallowTX]) = {
-    Task {
-      logger.info(s"$id Success ${
-        fullTxs.size
-      }")
-      logger.info(s"$id Failed ${
-        fails.size
-      } (receipt retrieval)")
-      logger.info(s"$id Failed ${
-        failWrite.size
-      } (failed to write into sync)")
-    }
+                        failWrite: Seq[ShallowTX]) = Task {
+    logger.info(s"$id Success ${
+      fullTxs.size
+    }")
+    logger.info(s"$id Failed ${
+      fails.size
+    } (receipt retrieval)")
+    logger.info(s"$id Failed ${
+      failWrite.size
+    } (failed to write into sink)")
   }
 
   /**

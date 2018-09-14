@@ -35,14 +35,33 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object Main extends App with LazyLogging {
-  Setup.default(Config.load)
-    .onErrorHandle { err => logger.error(err.getMessage) }
+
+  def taskFactory = () => Setup.default(Config.load)
+
+  graceRestartOnError(taskFactory)
     .runOnComplete { _ => logger.info("Shutdown.") }(Scheduler.io(s"main"))
+
+  def graceRestartOnError(taskFactory: () => Task[Unit]): Task[Unit] = {
+    def restartable(e: Exception): Task[Unit] = {
+      logger.error(s"${e.getMessage} occured, will restart.", e)
+      graceRestartOnError(taskFactory)
+    }
+    def severe(e: Exception): Task[Unit] = {
+      logger.error(s"${e.getMessage} occured, it is SEVERE will not restart.", e)
+      Task.raiseError(e)
+    }
+
+    taskFactory().onErrorRecoverWith {
+      case e: java.net.ConnectException => restartable(e)
+      case e: Exception => restartable(e)
+    }
+  }
 }
 
-object Setup {
+object Setup extends LazyLogging {
   def default(config: Config): Task[Unit] = {
     val network = config.networkId
+    logger.info(s"Starting setup for $network")
 
     lazy val prodScheduler = Scheduler.io(name = s"$network-prod")
     lazy val consumerScheduler = Scheduler.io(name = s"$network-consumer")

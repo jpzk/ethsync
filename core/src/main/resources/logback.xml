@@ -2,19 +2,19 @@
 <configuration>
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <layout class="ch.qos.logback.classic.PatternLayout">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <Pattern>
                 %d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n
             </Pattern>
-        </layout>
+        </encoder>
     </appender>
 
-    <logger name="io.netty" level="WARN" />
+    <logger name="io.netty" level="WARN"/>
     <logger name="ch.qos.logback" level="WARN"/>
     <logger name="org.apache.kafka" level="WARN"/>
 
     <root level="INFO">
-        <appender-ref ref="STDOUT" />
+        <appender-ref ref="STDOUT"/>
     </root>
 
 </configuration>
