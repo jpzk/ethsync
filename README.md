@@ -9,21 +9,6 @@ It uses different persistence backends to store in-flight transactions and the b
 
 The project aims at minimal code written in modern Scala with Monix, sttp (uses Netty) and circe. Hence, it does not require any bigger legacy Java library such as Web3j. Collaboration is highly appreciated. 
 
-## Main Features
-
-* Ready to use Docker image
-* At-least-once guarantee for blocks, transactions and receipts
-* Fault-tolerant (backed by Kafka brokers)
-* Serialization of transactions and receipts into Avro Binary 
-* Compatible with Kafka Connect due to Avro
-* Input validation for transaction and receipt objects
-
-## Why is this important?
-
-* Transparency and data access provides trust 
-* Open source allows having no 3rd party dependencies like Infura or Aleth.io
-* Allowing companies to build data products on top of accessible Ethereum data
-
 ## Quickstart
 
 For testing you can run it in the [Single Node Basic Deployment on Docker ](https://docs.confluent.io/current/installation/docker/docs/installation/single-node-client.html) supplied by confluent. After setting up your Zookeeper, Kafka environment, you can build the Docker image for ethsync locally and run it. Make sure to supply a synced Geth / Parity node in the environment variable NODES.
@@ -39,6 +24,22 @@ $ docker run --net=confluent \
     -e NAME=mainnet \
     com.reebo/core
 ```
+
+## Main Features
+
+* Ready to use Docker image
+* At-least-once guarantee for blocks, transactions and receipts
+* Fault-tolerant (backed by Kafka brokers)
+* Serialization of transactions and receipts into Avro Binary 
+* Compatible with Kafka Connect due to Avro
+* Input validation for transaction and receipt objects
+
+## Why is this important?
+
+* Transparency and data access provides trust 
+* Open source allows having no 3rd party dependencies like Infura or Aleth.io
+* Allowing companies to build data products on top of accessible Ethereum data
+
 
 ## Benchmark 
 
