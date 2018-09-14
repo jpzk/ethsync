@@ -27,16 +27,8 @@ $ docker run \
 * Ready to use Docker image
 * At-least-once guarantee for blocks, transactions and receipts
 * Fault-tolerant (backed by Kafka brokers)
-* Serialization of transactions and receipts into Avro Binary 
-* Compatible with Kafka Connect due to Avro
+* Serialization of transactions and receipts into Avro Binary format
 * Input validation for transaction and receipt objects
-
-## Why is this important?
-
-* Transparency and data access provides trust 
-* Open source allows having no 3rd party dependencies like Infura or Aleth.io
-* Allowing companies to build data products on top of accessible Ethereum data
-
 
 ## Benchmark 
 
@@ -63,6 +55,12 @@ $ docker run -d \
     -cp "/app/ethsync.jar" \
     "com.reebo.ethsync.core.utils.SettingBlockOffset"
 ```
+
+## Why is this important?
+
+* Transparency and data access provides trust 
+* Open source allows having no 3rd party dependencies like Infura or Aleth.io
+* Allowing companies to build data products on top of accessible Ethereum data
 
 ## Known Caveats / Issues
 * In multi-instance mode, where there is more than one Eventeum instance in a system, your services are required to handle duplicate messages gracefully, as each instance will broadcast the same events.
