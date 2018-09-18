@@ -27,8 +27,8 @@ import com.sksamuel.avro4s.AvroSchema
   */
 object CreateSchema extends App with LazyLogging {
   writeToFile(AvroSchema[FullTransaction].toString(true), "avro/FullTransaction.json")
-  writeToFile(AvroSchema[Transaction].toString(true), "avro/TransactionSchema.json")
-  writeToFile(AvroSchema[CompactTransaction].toString(true), "avro/TransactionCompactSchema.json")
+  writeToFile(AvroSchema[Transaction].toString(true), "avro/Transaction.json")
+  writeToFile(AvroSchema[CompactTransaction].toString(true), "avro/CompactTransaction.json")
 
   def writeToFile(content: String, filename: String): Unit = {
     val writer = new PrintWriter(new File(filename))
