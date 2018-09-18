@@ -1,48 +1,58 @@
 {
   "type" : "record",
-  "name" : "AvroTransactionCompact",
+  "name" : "CompactTransaction",
   "namespace" : "com.reebo.ethsync.core.serialization",
   "fields" : [ {
     "name" : "blockHash",
-    "type" : "bytes"
+    "type" : "string"
   }, {
     "name" : "blockNumber",
-    "type" : "bytes"
+    "type" : "long"
   }, {
     "name" : "from",
-    "type" : "bytes"
-  }, {
-    "name" : "gas",
-    "type" : "bytes"
-  }, {
-    "name" : "gasPrice",
-    "type" : "bytes"
+    "type" : "string"
   }, {
     "name" : "hash",
-    "type" : "bytes"
+    "type" : "string"
   }, {
     "name" : "input",
-    "type" : "bytes"
-  }, {
-    "name" : "nonce",
-    "type" : "bytes"
+    "type" : "string"
   }, {
     "name" : "to",
-    "type" : "bytes"
-  }, {
-    "name" : "transactionIndex",
-    "type" : "bytes"
+    "type" : [ "null", "string" ]
   }, {
     "name" : "value",
-    "type" : "bytes"
+    "type" : "long"
   }, {
-    "name" : "v",
+    "name" : "status",
     "type" : "int"
   }, {
-    "name" : "r",
-    "type" : "bytes"
+    "name" : "contractAddress",
+    "type" : [ "null", "string" ]
   }, {
-    "name" : "s",
-    "type" : "bytes"
+    "name" : "logs",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "record",
+        "name" : "CompactLog",
+        "fields" : [ {
+          "name" : "topics",
+          "type" : {
+            "type" : "array",
+            "items" : "string"
+          }
+        }, {
+          "name" : "data",
+          "type" : "string"
+        }, {
+          "name" : "removed",
+          "type" : "boolean"
+        } ]
+      }
+    }
+  }, {
+    "name" : "logsBloom",
+    "type" : "string"
   } ]
 }

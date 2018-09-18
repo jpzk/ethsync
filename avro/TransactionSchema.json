@@ -28,7 +28,7 @@
     "type" : "string"
   }, {
     "name" : "to",
-    "type" : "string"
+    "type" : [ "null", "string" ]
   }, {
     "name" : "transactionIndex",
     "type" : "int"

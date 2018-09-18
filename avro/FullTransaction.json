@@ -33,7 +33,7 @@
         "type" : "string"
       }, {
         "name" : "to",
-        "type" : "string"
+        "type" : [ "null", "string" ]
       }, {
         "name" : "transactionIndex",
         "type" : "int"
@@ -122,7 +122,7 @@
         "type" : "int"
       }, {
         "name" : "to",
-        "type" : "string"
+        "type" : [ "null", "string" ]
       }, {
         "name" : "transactionHash",
         "type" : "string"
