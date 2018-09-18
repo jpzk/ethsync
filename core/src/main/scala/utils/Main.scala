@@ -20,7 +20,7 @@ import java.nio.ByteBuffer
 
 import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
 import com.reebo.ethsync.core._
-import com.reebo.ethsync.core.persistence.{InMemoryBlockOffset, InMemoryTXPersistence}
+import com.reebo.ethsync.core.persistence.{KafkaBlockOffset, KafkaTXPersistence}
 import com.reebo.ethsync.core.serialization.AvroSerialization
 import com.reebo.ethsync.core.web3.{AggressiveLifter, Cluster, ClusterBlockRetriever, Web3Node}
 import com.softwaremill.sttp.SttpBackend
@@ -71,10 +71,12 @@ object Setup extends LazyLogging {
     val sink: TXSink = setupSink(config.format, config.topic, producer)
     val nodes = setupNodes(network, config.nodes)
     val cluster = Cluster(nodes)
+
+    val txPersistence = new KafkaTXPersistence(kafkaScheduler, config.brokers)
     val bDispatcher = BlockDispatcher(network,
-      setupTXDispatcher(network, cluster, sink),
+      setupTXDispatcher(network, cluster, sink, txPersistence),
       ClusterBlockRetriever(cluster),
-      InMemoryBlockOffset(5324598))
+      new KafkaBlockOffset(kafkaScheduler, config.brokers))
 
     for {
       ch <- MVar.empty[Seq[FullBlock[ShallowTX]]]
@@ -105,12 +107,12 @@ object Setup extends LazyLogging {
       .map { case (uri, id) => Web3Node(s"$networkId-$id", uri) }
   }
 
-  private def setupTXDispatcher(networkId: String, cluster: Cluster, sink: TXSink) =
+  private def setupTXDispatcher(networkId: String, cluster: Cluster, sink: TXSink, persistence: TXPersistence) =
     TXDispatcher(
       networkId,
       AggressiveLifter(cluster),
       sink,
-      InMemoryTXPersistence(),
+      persistence,
       BackoffRetry(10, 1.seconds))
 
   private def kafka(brokers: Seq[String], scheduler: Scheduler) =

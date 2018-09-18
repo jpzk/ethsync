@@ -14,6 +14,8 @@ docker run -d \
     -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
     confluentinc/cp-kafka:4.1.2
 
+sleep 10
+
 # create a topic for transactions
 docker run \
   --net=confluent \
@@ -34,10 +36,10 @@ docker run \
   --if-not-exists --zookeeper zookeeper:2181
 
 # run ethsync 
-docker run -d \
-    --net=confluent \
-    --name=ethsync \
-    -e MAINNET_NODES=http://localhost:8645 \
-    -e MAINNET_BROKERS=kafka:9092 \
-    -e MAINNET_TOPIC=transactions \
-    com.reebo/core
+#docker run -d \
+#   --net=confluent \
+#    --name=ethsync \
+#    -e MAINNET_NODES=http://localhost:8645 \
+#    -e MAINNET_BROKERS=kafka:9092 \
+#    -e MAINNET_TOPIC=transactions \
+#    com.reebo/core

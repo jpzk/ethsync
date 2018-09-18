@@ -273,7 +273,39 @@ object Validators {
 
 object Schemas {
 
+  def Log2CompactLog(log: Log) = CompactLog(log.topics, log.data, log.removed)
+
+  def FullTransaction2CompactTransaction(tx: FullTransaction) = {
+    val txd = tx.tx
+    CompactTransaction(txd.blockHash,
+      txd.blockNumber,
+      txd.from,
+      txd.hash,
+      txd.input,
+      txd.to,
+      txd.value,
+      tx.receipt.status,
+      tx.receipt.contractAddress,
+      tx.receipt.logs.map(Log2CompactLog),
+      tx.receipt.logsBloom
+    )
+  }
+
   case class FullTransaction(tx: Transaction, receipt: Receipt)
+
+  case class CompactTransaction(blockHash: String,
+                                blockNumber: Long,
+                                from: String,
+                                hash: String,
+                                input: String,
+                                to: Option[String],
+                                value: Long,
+                                status: Int,
+                                contractAddress: Option[String],
+                                logs: Array[CompactLog],
+                                logsBloom: String)
+
+  case class CompactLog(topics: Array[String], data: String, removed: Boolean)
 
   case class Log(address: String,
                  topics: Array[String],

@@ -31,6 +31,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 import scala.language.implicitConversions
 
 /**
@@ -70,7 +71,7 @@ class KafkaTXPersistence(scheduler: Scheduler, brokers: Seq[String])
     logger.info(s"Added ${store.get.size} to Kafka TX persistence")
   }
 
-  override def remove(txs: Seq[ShallowTX]): Task[Unit] = if(txs.isEmpty) Task.unit else for {
+  override def remove(txs: Seq[ShallowTX]): Task[Unit] = if (txs.isEmpty) Task.unit else for {
     oldStore <- Task.now(store.get)
     _ <- Task.now(store.transform { set =>
       (set.toSet -- txs).toSeq
@@ -162,29 +163,46 @@ class KafkaBacked[V, V2: Serializer : Deserializer](scheduler: Scheduler, broker
                            producer: KafkaProducer[String, V2],
                            topicParititon: TopicPartition,
                            topic: String,
-                           initialValue: V2): Task[V2] = for {
+                           initialValue: V2): Task[V2] = {
 
-    offset <- Task.now(consumer.endOffsets(List(topicParititon).asJava).asScala.get(topicParititon))
-    last <- offset match {
-      case None =>
-        logger.info(s"No consumer offset set, will initial with ${initialValue}")
-        producer.send(topic, initialValue).map { _ =>
-          consumer.unsubscribe()
-          consumer.assign(List(topicParititon).asJava)
-          val ret = consumer.poll(1000).iterator().next.value() // @todo failure case
-          consumer.commitSync()
-          ret
-        }
-      case Some(o) => Task {
-        logger.info(s"Got consumer offset ${o}")
+    // recursive function to wait for loop back message
+    def waitForRecord: Task[V2] = for {
+      _ <- Task(logger.info("Waiting for initial value looped back"))
+      polled <- Task(consumer.poll(1000))
+      ret <- if (polled.count() < 1) {
+        waitForRecord.delayExecution(1.second)
+      } else Task {
+        consumer.commitSync()
+        polled.iterator().next.value()
+      }
+    } yield ret
+
+    // putting the initial value if no offset is set
+    def putInitial: Task[V2] = for {
+      _ <- Task(logger.info(s"No consumer offset set, will initial with ${initialValue}"))
+      _ <- producer.send(topic, initialValue)
+      ret <- seekAndRead(0)
+    } yield ret
+
+    // seeking to a giving offset and read from that offset
+    def seekAndRead(offset: Long) = for {
+      _ <- Task {
+        logger.info(s"Attempt to read from ${offset}")
         consumer.unsubscribe()
         consumer.assign(List(topicParititon).asJava)
-        consumer.seek(topicParititon, o - 1)
-        val ret = consumer.poll(1000).iterator().next().value() // @todo failure case
-        consumer.commitSync()
-        ret
+        consumer.seek(topicParititon, offset)
       }
-    }
-  } yield last
+      ret <- waitForRecord
+    } yield ret
+
+    for {
+      offset <- Task.now(consumer.endOffsets(List(topicParititon).asJava).asScala.get(topicParititon))
+      last <- offset match {
+        case None => putInitial
+        case Some(k) => if (k > 0) seekAndRead(k - 1) else putInitial
+      }
+    } yield last
+  }
+
 }
 
