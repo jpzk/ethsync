@@ -31,16 +31,14 @@ $ docker run \
 * Input validation for transaction and receipt objects
 * Different output formats
 
-## Output Formats
+## Output Schemas 
 
-| Name | Description | Flag | Schema | 
+Every output schema has its own topic. E.g. if you run ethsync with the full flag it will use the full-transactions topic as a sink. This is a Kafka convention, and it is pretty handy for later schema evolution. 
+
+| Topic | Description | Flag | Schema | 
 | --- | --- | --- | --- | 
-| FullTransaction | Avro Binary format. Maintains structure and data from JSON-RPC including receipt, see [Schema](https://github.com/jpzk/ethsync/blob/master/avro/FullTransaction.json). | full | [FullTransaction.json](https://github.com/jpzk/ethsync/blob/master/avro/FullTransaction.json)  |
-| CompactTransaction | Avro Binary Format. Without redundant data, some fields are removed, see [Schema](https://github.com/jpzk/ethsync/blob/master/avro/CompactTransaction.json). | compact | [CompactTransaction.json](https://github.com/jpzk/ethsync/blob/master/avro/CompactTransaction.json) |
-
-
-
-
+| full-transactions | Avro Binary format. Maintains structure and data from JSON-RPC including receipt, see [Schema](https://github.com/jpzk/ethsync/blob/master/avro/FullTransaction.json). | full | [FullTransaction.json](https://github.com/jpzk/ethsync/blob/master/avro/FullTransaction.json)  |
+| compact-transactions | Avro Binary Format. Without redundant data, some fields are removed, see [Schema](https://github.com/jpzk/ethsync/blob/master/avro/CompactTransaction.json). | compact | [CompactTransaction.json](https://github.com/jpzk/ethsync/blob/master/avro/CompactTransaction.json) |
 
 ## Benchmark 
 
