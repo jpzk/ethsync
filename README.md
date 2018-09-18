@@ -29,6 +29,18 @@ $ docker run \
 * Fault-tolerant (backed by Kafka brokers)
 * Serialization of transactions and receipts into Avro Binary format
 * Input validation for transaction and receipt objects
+* Different output formats
+
+## Output Formats
+
+| Name | Description | Flag | Schema | 
+| --- | --- | --- | --- | 
+| FullTransaction | Avro Binary format. Maintains structure and data from JSON-RPC including receipt, see [Schema](https://github.com/jpzk/ethsync/blob/master/avro/FullTransaction.json). | full | [FullTransaction.json](https://github.com/jpzk/ethsync/blob/master/avro/FullTransaction.json)  |
+| CompactTransaction | Avro Binary Format. Without redundant data, some fields are removed, see [Schema](https://github.com/jpzk/ethsync/blob/master/avro/CompactTransaction.json). | compact | [CompactTransaction.json](https://github.com/jpzk/ethsync/blob/master/avro/CompactTransaction.json) |
+
+
+
+
 
 ## Benchmark 
 
