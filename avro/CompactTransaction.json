@@ -9,7 +9,7 @@
     "name" : "blockNumber",
     "type" : "long"
   }, {
-    "name" : "from",
+    "name" : "fromAddr",
     "type" : "string"
   }, {
     "name" : "hash",
@@ -18,10 +18,10 @@
     "name" : "input",
     "type" : "string"
   }, {
-    "name" : "to",
+    "name" : "toAddr",
     "type" : [ "null", "string" ]
   }, {
-    "name" : "value",
+    "name" : "weiValue",
     "type" : "long"
   }, {
     "name" : "status",
@@ -37,7 +37,7 @@
         "type" : "record",
         "name" : "CompactLog",
         "fields" : [ {
-          "name" : "topics",
+          "name" : "logTopics",
           "type" : {
             "type" : "array",
             "items" : "string"

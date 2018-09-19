@@ -1,0 +1,3 @@
+{
+  "schema" : "{\"type\":\"record\",\"name\":\"Log\",\"namespace\":\"com.reebo.ethsync.core.serialization\",\"fields\":[{\"name\":\"address\",\"type\":\"string\"},{\"name\":\"logTopics\",\"type\":{\"type\":\"array\",\"items\":\"string\"}},{\"name\":\"data\",\"type\":\"string\"},{\"name\":\"blockNumber\",\"type\":\"long\"},{\"name\":\"transactionHash\",\"type\":\"string\"},{\"name\":\"transactionIndex\",\"type\":\"int\"},{\"name\":\"blockHash\",\"type\":\"string\"},{\"name\":\"logIndex\",\"type\":\"int\"},{\"name\":\"removed\",\"type\":\"boolean\"}]}"
+}

@@ -273,17 +273,17 @@ object Validators {
 
 object Schemas {
 
-  def Log2CompactLog(log: Log) = CompactLog(log.topics, log.data, log.removed)
+  def Log2CompactLog(log: Log) = CompactLog(log.logTopics, log.data, log.removed)
 
   def FullTransaction2CompactTransaction(tx: FullTransaction) = {
     val txd = tx.tx
     CompactTransaction(txd.blockHash,
       txd.blockNumber,
-      txd.from,
+      txd.fromAddr,
       txd.hash,
       txd.input,
-      txd.to,
-      txd.value,
+      txd.toAddr,
+      txd.weiValue,
       tx.receipt.status,
       tx.receipt.contractAddress,
       tx.receipt.logs.map(Log2CompactLog),
@@ -295,20 +295,20 @@ object Schemas {
 
   case class CompactTransaction(blockHash: String,
                                 blockNumber: Long,
-                                from: String,
+                                fromAddr: String,
                                 hash: String,
                                 input: String,
-                                to: Option[String],
-                                value: Long,
+                                toAddr: Option[String],
+                                weiValue: Long,
                                 status: Int,
                                 contractAddress: Option[String],
                                 logs: Array[CompactLog],
                                 logsBloom: String)
 
-  case class CompactLog(topics: Array[String], data: String, removed: Boolean)
+  case class CompactLog(logTopics: Array[String], data: String, removed: Boolean)
 
   case class Log(address: String,
-                 topics: Array[String],
+                 logTopics: Array[String],
                  data: String,
                  blockNumber: Long,
                  transactionHash: String,
@@ -321,26 +321,26 @@ object Schemas {
                      blockNumber: Long,
                      contractAddress: Option[String],
                      cumulativeGasUsed: Long,
-                     from: String,
+                     fromAddr: String,
                      gasUsed: Long,
                      logs: Array[Log],
                      logsBloom: String,
                      status: Int,
-                     to: Option[String],
+                     toAddr: Option[String],
                      transactionHash: String,
                      transactionIndex: Int)
 
   case class Transaction(blockHash: String,
                          blockNumber: Long,
-                         from: String,
+                         fromAddr: String,
                          gas: Long,
                          gasPrice: Long,
                          hash: String,
                          input: String,
                          nonce: String,
-                         to: Option[String],
+                         toAddr: Option[String],
                          transactionIndex: Int,
-                         value: Long,
+                         weiValue: Long,
                          v: Byte,
                          r: String,
                          s: String)

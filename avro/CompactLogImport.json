@@ -1,0 +1,3 @@
+{
+  "schema" : "{\"type\":\"record\",\"name\":\"CompactLog\",\"namespace\":\"com.reebo.ethsync.core.serialization\",\"fields\":[{\"name\":\"logTopics\",\"type\":{\"type\":\"array\",\"items\":\"string\"}},{\"name\":\"data\",\"type\":\"string\"},{\"name\":\"removed\",\"type\":\"boolean\"}]}"
+}

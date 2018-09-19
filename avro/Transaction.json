@@ -9,7 +9,7 @@
     "name" : "blockNumber",
     "type" : "long"
   }, {
-    "name" : "from",
+    "name" : "fromAddr",
     "type" : "string"
   }, {
     "name" : "gas",
@@ -27,13 +27,13 @@
     "name" : "nonce",
     "type" : "string"
   }, {
-    "name" : "to",
+    "name" : "toAddr",
     "type" : [ "null", "string" ]
   }, {
     "name" : "transactionIndex",
     "type" : "int"
   }, {
-    "name" : "value",
+    "name" : "weiValue",
     "type" : "long"
   }, {
     "name" : "v",

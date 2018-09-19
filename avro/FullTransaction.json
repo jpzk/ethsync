@@ -14,7 +14,7 @@
         "name" : "blockNumber",
         "type" : "long"
       }, {
-        "name" : "from",
+        "name" : "fromAddr",
         "type" : "string"
       }, {
         "name" : "gas",
@@ -32,13 +32,13 @@
         "name" : "nonce",
         "type" : "string"
       }, {
-        "name" : "to",
+        "name" : "toAddr",
         "type" : [ "null", "string" ]
       }, {
         "name" : "transactionIndex",
         "type" : "int"
       }, {
-        "name" : "value",
+        "name" : "weiValue",
         "type" : "long"
       }, {
         "name" : "v",
@@ -69,7 +69,7 @@
         "name" : "cumulativeGasUsed",
         "type" : "long"
       }, {
-        "name" : "from",
+        "name" : "fromAddr",
         "type" : "string"
       }, {
         "name" : "gasUsed",
@@ -85,7 +85,7 @@
               "name" : "address",
               "type" : "string"
             }, {
-              "name" : "topics",
+              "name" : "logTopics",
               "type" : {
                 "type" : "array",
                 "items" : "string"
@@ -121,7 +121,7 @@
         "name" : "status",
         "type" : "int"
       }, {
-        "name" : "to",
+        "name" : "toAddr",
         "type" : [ "null", "string" ]
       }, {
         "name" : "transactionHash",

@@ -18,7 +18,7 @@ package com.reebo.ethsync.core.utils
 
 import java.io.{File, PrintWriter}
 
-import com.reebo.ethsync.core.serialization.Schemas.{CompactTransaction, FullTransaction, Transaction}
+import com.reebo.ethsync.core.serialization.Schemas.{CompactLog, CompactTransaction, FullTransaction, Log, Transaction}
 import com.sksamuel.avro4s.AvroSchema
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.generic.auto._
@@ -32,10 +32,14 @@ case class AvroSchemaImport(schema: String)
 object CreateSchema extends App with LazyLogging {
   def importF(json: String) = AvroSchemaImport(json).asJson.toString()
 
+  writeToFile(AvroSchema[Log].toString(false), "avro/LogImport.json", importF)
+  writeToFile(AvroSchema[CompactLog].toString(false), "avro/CompactLogImport.json", importF)
   writeToFile(AvroSchema[FullTransaction].toString(false), "avro/FullTransactionImport.json", importF)
   writeToFile(AvroSchema[Transaction].toString(false), "avro/TransactionImport.json", importF)
   writeToFile(AvroSchema[CompactTransaction].toString(false), "avro/CompactTransactionImport.json", importF)
 
+  writeToFile(AvroSchema[Log].toString(true), "avro/Log.json")
+  writeToFile(AvroSchema[CompactLog].toString(true), "avro/CompactLog.json")
   writeToFile(AvroSchema[FullTransaction].toString(true), "avro/FullTransaction.json")
   writeToFile(AvroSchema[Transaction].toString(true), "avro/Transaction.json")
   writeToFile(AvroSchema[CompactTransaction].toString(true), "avro/CompactTransaction.json")
