@@ -21,7 +21,7 @@ import java.nio.ByteBuffer
 import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
 import com.reebo.ethsync.core._
 import com.reebo.ethsync.core.persistence.{KafkaBlockOffset, KafkaTXPersistence}
-import com.reebo.ethsync.core.serialization.Schemas.{FullTransaction, Transaction}
+import com.reebo.ethsync.core.serialization.Schemas.Transaction
 import com.reebo.ethsync.core.serialization.Transformer
 import com.reebo.ethsync.core.web3.{AggressiveLifter, Cluster, ClusterBlockRetriever, Web3Node}
 import com.sksamuel.avro4s.RecordFormat
@@ -101,19 +101,11 @@ object Setup extends LazyLogging {
     )
     private val producer = KafkaProducer[String, Object](producerCfg, scheduler)
 
-    def formatF(tx: FullTransaction) = tx
-
     implicit val format = RecordFormat[Transaction]
-
     override def sink(tx: Protocol.FullTX): Task[Unit] = (for {
       ftx <- Task.now(Transformer.transform(tx, identity))
       txobj <- Task.now(ftx.get.tx)
-      record <- Task {
-        val record = format.to(txobj)
-        val pr = new ProducerRecord[String, Object](topic, "", record)
-        logger.info(pr.toString)
-        pr
-      }
+      record <- Task.now(new ProducerRecord[String, Object](topic, "", format.to(txobj)))
       _ <- producer.send(record)
     } yield ())
       .onErrorHandleWith { e =>
