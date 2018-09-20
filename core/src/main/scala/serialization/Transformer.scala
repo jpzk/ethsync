@@ -17,11 +17,12 @@
 package com.reebo.ethsync.core.serialization
 
 import com.reebo.ethsync.core.CirceHelpers._
+import com.reebo.ethsync.core.Protocol.FullTX
+import com.sksamuel.avro4s.{SchemaFor, ToRecord}
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.{Decoder, HCursor, Json}
 
 import scala.util.{Failure, Success, Try}
-
 
 object Transformer extends LazyLogging {
 
@@ -155,5 +156,17 @@ object Transformer extends LazyLogging {
       Failure(iterable.filter(_.isFailure).head.failed.get)
     }
   }
+
+  /**
+    * Validates the FullTX with validators and applys f to convert to another schema
+    *
+    * @param tx transaction
+    * @param f converter function to T
+    * @tparam T result type T
+    */
+  def transform[T: SchemaFor : ToRecord](tx: FullTX, f: FullTransaction => T) = for {
+    txn <- Transformer.json2Transaction(tx.data.data)
+    receipt <- Transformer.json2Receipt(tx.receipt)
+  } yield f(FullTransaction(txn, receipt))
 }
 

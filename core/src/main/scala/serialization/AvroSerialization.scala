@@ -16,12 +16,9 @@
   */
 package com.reebo.ethsync.core.serialization
 
-import java.io.ByteArrayOutputStream
-
-import com.reebo.ethsync.core.Protocol.FullTX
-import com.sksamuel.avro4s.{AvroOutputStream, SchemaFor, ToRecord}
-
-import scala.util.Try
+import com.reebo.ethsync.core.serialization.Schemas.FullTransaction
+import com.sksamuel.avro4s.{SchemaFor, ToRecord}
+import monix.eval.Task
 
 object AvroHelper {
   // Converting Ethereum hex encoding to Byte Array
@@ -30,24 +27,10 @@ object AvroHelper {
   }
 }
 
-object AvroSerialization {
+trait AvroSink {
+  def sink[T : SchemaFor : ToRecord](record: T): Task[Unit]
+}
 
-  import Schemas._
-
-  def serialize[T: SchemaFor : ToRecord](tx: FullTX, t: FullTransaction => T) = for {
-    txn <- Transformer.json2Transaction(tx.data.data)
-    receipt <- Transformer.json2Receipt(tx.receipt)
-  } yield {
-    val baos = new ByteArrayOutputStream()
-    val output = AvroOutputStream.binary[T](baos)
-    output.write(t(FullTransaction(txn, receipt)))
-    output.close()
-    baos.toByteArray
-  }
-
-  def compact(tx: FullTX): Try[Array[Byte]] =
-    serialize[CompactTransaction](tx, FullTransaction2CompactTransaction)
-
-  def full(tx: FullTX): Try[Array[Byte]] =
-    serialize[FullTransaction](tx, identity)
+trait AvroTransform {
+  def transform[T: SchemaFor : ToRecord](tx: FullTransaction): T
 }

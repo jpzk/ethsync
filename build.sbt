@@ -12,6 +12,8 @@ lazy val core = (project in file("core")).
     assemblyJarName in assembly := "ethsync.jar",
     assemblyMergeStrategy in assembly := {
       case PathList("META-INF", "io.netty.versions.properties", xs@_*) => MergeStrategy.first
+      case PathList("com","typesafe","scalalogging", xs@_*) => MergeStrategy.first
+      case PathList("org","xerial", xs@_*) => MergeStrategy.first
       case x =>
         val oldStrategy = (assemblyMergeStrategy in assembly).value
         oldStrategy(x)
@@ -48,12 +50,8 @@ lazy val core = (project in file("core")).
       "io.circe" %% "circe-generic" % "0.9.3",
       "io.monix" %% "monix" % "3.0.0-RC1",
       "com.sksamuel.avro4s" %% "avro4s-core" % "1.9.0"
-    ) ++ testDeps ++ sttp ++ log ++ kafka
+    ) ++ testDeps ++ sttp ++ log 
   )
-
-lazy val kafka = Seq(
-  "io.monix" %% "monix-kafka-1x" % "1.0.0-RC1",
-)
 
 lazy val testDeps = Seq(
   "org.scalatest" %% "scalatest" % "3.0.4" % Test,
