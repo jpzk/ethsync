@@ -35,16 +35,24 @@ lazy val core = (project in file("core")).
     }
   ).
   settings(
+    resolvers += "confluent.io" at "http://packages.confluent.io/maven/"
+  ).
+  settings(
     libraryDependencies ++= Seq(
+      "io.confluent" % "kafka-avro-serializer" % "4.0.0"
+        excludeAll(
+        ExclusionRule(organization = "org.slf4j"),
+        ExclusionRule(organization = "log4j")
+      ),
       "io.dropwizard.metrics" % "metrics-core" % "4.0.3",
       "io.circe" %% "circe-generic" % "0.9.3",
       "io.monix" %% "monix" % "3.0.0-RC1",
-      "com.sksamuel.avro4s" % "avro4s-core_2.12" % "1.9.0"
+      "com.sksamuel.avro4s" %% "avro4s-core" % "1.9.0"
     ) ++ testDeps ++ sttp ++ log ++ kafka
   )
 
 lazy val kafka = Seq(
-  "io.monix" %% "monix-kafka-1x" % "1.0.0-RC1"
+  "io.monix" %% "monix-kafka-1x" % "1.0.0-RC1",
 )
 
 lazy val testDeps = Seq(

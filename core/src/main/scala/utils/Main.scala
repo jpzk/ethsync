@@ -67,8 +67,7 @@ object Setup extends LazyLogging {
     lazy val consumerScheduler = Scheduler.io(name = s"$network-consumer")
     lazy val kafkaScheduler = Scheduler.io(name = s"$network-kafka")
 
-    val producer = kafka(config.brokers, kafkaScheduler)
-    val sink: TXSink = setupSink(config.format, config.topic, producer)
+    val sink: TXSink = setupSink(config.brokers, kafkaScheduler, config.format, config.topic)
     val nodes = setupNodes(network, config.nodes)
     val cluster = Cluster(nodes)
 
@@ -87,8 +86,12 @@ object Setup extends LazyLogging {
     } yield both
   }
 
-  private def setupSink(format: OutputFormat, topic: String,
-                        producer: KafkaProducer[String, Array[Byte]]) = new TXSink {
+  private def setupSink(brokers: Seq[String],
+                        scheduler: Scheduler,
+                        format: OutputFormat, topic: String) = new TXSink {
+    val producer =
+      KafkaProducer[String, Array[Byte]](KafkaProducerConfig.default.copy(brokers.toList), scheduler)
+
     override def sink(tx: Protocol.FullTX): Task[Unit] = {
       (format match {
         case FullTransaction => AvroSerialization.full _
@@ -114,16 +117,8 @@ object Setup extends LazyLogging {
       sink,
       persistence,
       BackoffRetry(10, 1.seconds))
-
-  private def kafka(brokers: Seq[String], scheduler: Scheduler) =
-    KafkaProducer[String, Array[Byte]](KafkaProducerConfig.default.copy(brokers.toList), scheduler)
 }
 
-sealed trait OutputFormat
-
-case object FullTransaction extends OutputFormat
-
-case object CompactTransaction extends OutputFormat
 
 case class Config(networkId: String,
                   nodes: Seq[String],
@@ -147,3 +142,9 @@ object Config {
         case _ => throw new Exception("Format not supported.")
       })
 }
+
+sealed trait OutputFormat
+
+case object FullTransaction extends OutputFormat
+
+case object CompactTransaction extends OutputFormat

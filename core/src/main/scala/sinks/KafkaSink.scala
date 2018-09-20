@@ -1,0 +1,5 @@
+package sinks
+
+class KafkaSink {
+
+}
