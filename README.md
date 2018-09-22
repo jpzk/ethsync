@@ -9,6 +9,7 @@ ethsync is a bridge between Ethereum nodes and Kafka. It stores in-flight transa
 
 * Ready to use Docker image
 * At-least-once guarantee for blocks, transactions and receipts
+* KSQL-compatible
 * Fault-tolerant (backed by Kafka brokers)
 * Serialization of transactions and receipts into Avro Binary format
 * Input validation for transaction and receipt objects
