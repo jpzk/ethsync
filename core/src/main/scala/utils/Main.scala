@@ -21,8 +21,8 @@ import java.nio.ByteBuffer
 import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
 import com.reebo.ethsync.core._
 import com.reebo.ethsync.core.persistence.{KafkaBlockOffset, KafkaTXPersistence}
-import com.reebo.ethsync.core.serialization.Schemas.Transaction
-import com.reebo.ethsync.core.serialization.Transformer
+import com.reebo.ethsync.core.serialization.Schemas.{FullTransaction, Transaction}
+import com.reebo.ethsync.core.serialization.{AvroSerializer, Transformer}
 import com.reebo.ethsync.core.web3.{AggressiveLifter, Cluster, ClusterBlockRetriever, Web3Node}
 import com.sksamuel.avro4s.RecordFormat
 import com.softwaremill.sttp.SttpBackend
@@ -30,11 +30,11 @@ import com.softwaremill.sttp.asynchttpclient.monix.AsyncHttpClientMonixBackend
 import com.typesafe.scalalogging.LazyLogging
 import monix.eval.{MVar, Task}
 import monix.execution.Scheduler
-import monix.kafka.{KafkaProducer, KafkaProducerConfig}
+import monix.kafka.{KafkaProducer, KafkaProducerConfig, Serializer}
 import monix.reactive.Observable
 import org.apache.kafka.clients.producer.ProducerRecord
 
-import scala.concurrent.duration._
+import concurrent.duration._
 
 object Main extends App with LazyLogging {
 
@@ -96,15 +96,17 @@ object Setup extends LazyLogging {
                         topic: String) = new TXSink {
 
     val producerCfg = KafkaProducerConfig.default.copy(
-      bootstrapServers = brokers.toList,
-      schemaRegistry = Some(schemaRegistry)
+      bootstrapServers = brokers.toList
     )
-    private val producer = KafkaProducer[String, Object](producerCfg, scheduler)
 
-    implicit val format = RecordFormat[Transaction]
+    val serializerCfg = Map("schema.registry.url" -> schemaRegistry)
+    implicit val serializer: Serializer[Object] = AvroSerializer.serializer(serializerCfg, false)
+    private val producer = KafkaProducer[String, Object](producerCfg, scheduler)
+    implicit val format = RecordFormat[FullTransaction]
+
     override def sink(tx: Protocol.FullTX): Task[Unit] = (for {
       ftx <- Task.now(Transformer.transform(tx, identity))
-      txobj <- Task.now(ftx.get.tx)
+      txobj <- Task.now(ftx.get)
       record <- Task.now(new ProducerRecord[String, Object](topic, "", format.to(txobj)))
       _ <- producer.send(record)
     } yield ())

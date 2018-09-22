@@ -12,8 +12,8 @@ lazy val core = (project in file("core")).
     assemblyJarName in assembly := "ethsync.jar",
     assemblyMergeStrategy in assembly := {
       case PathList("META-INF", "io.netty.versions.properties", xs@_*) => MergeStrategy.first
-      case PathList("com","typesafe","scalalogging", xs@_*) => MergeStrategy.first
-      case PathList("org","xerial", xs@_*) => MergeStrategy.first
+      case PathList("com", "typesafe", "scalalogging", xs@_*) => MergeStrategy.first
+      case PathList("org", "xerial", xs@_*) => MergeStrategy.first
       case x =>
         val oldStrategy = (assemblyMergeStrategy in assembly).value
         oldStrategy(x)
@@ -30,7 +30,7 @@ lazy val core = (project in file("core")).
       new Dockerfile {
         from("anapsix/alpine-java")
         add(artifact, artifactTargetPath)
-        copy(baseDirectory(_ / "src" / "main" / "resources" / "logback.xml" ).value, "/src/main/resources/")
+        copy(baseDirectory(_ / "src" / "main" / "resources" / "logback.xml").value, "/src/main/resources/")
         entryPoint("java", "-Dlogback.configurationFile=/app/logback.xml", "-cp",
           artifactTargetPath, "com.reebo.ethsync.core.utils.Main")
       }
@@ -41,17 +41,21 @@ lazy val core = (project in file("core")).
   ).
   settings(
     libraryDependencies ++= Seq(
-      "io.confluent" % "kafka-avro-serializer" % "4.0.0"
-        excludeAll(
-        ExclusionRule(organization = "org.slf4j"),
-        ExclusionRule(organization = "log4j")
-      ),
       "io.dropwizard.metrics" % "metrics-core" % "4.0.3",
       "io.circe" %% "circe-generic" % "0.9.3",
       "io.monix" %% "monix" % "3.0.0-RC1",
       "com.sksamuel.avro4s" %% "avro4s-core" % "1.9.0"
-    ) ++ testDeps ++ sttp ++ log 
+    ) ++ testDeps ++ sttp ++ log ++ kafka
   )
+
+lazy val kafka = Seq(
+  "io.monix" %% "monix-kafka-1x" % "1.0.0-RC1",
+  "io.confluent" % "kafka-avro-serializer" % "5.0.0"
+    excludeAll(
+    ExclusionRule(organization = "org.slf4j"),
+    ExclusionRule(organization = "log4j")
+  )
+)
 
 lazy val testDeps = Seq(
   "org.scalatest" %% "scalatest" % "3.0.4" % Test,

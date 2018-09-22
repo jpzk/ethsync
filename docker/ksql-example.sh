@@ -103,7 +103,7 @@ docker run -d \
     --name=ethsync \
     -e NODES=http://178.128.204.38:8545 \
     -e BROKERS=kafka:9092 \
-    -e TOPIC=transactions \
+    -e TOPIC=full-transactions \
     -e FORMAT=full\
     -e NAME=mainnet \
     com.reebo/core
