@@ -21,7 +21,7 @@ import java.nio.ByteBuffer
 import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
 import com.reebo.ethsync.core._
 import com.reebo.ethsync.core.persistence.{KafkaBlockOffset, KafkaTXPersistence}
-import com.reebo.ethsync.core.serialization.Schemas.{FullTransaction, Transaction}
+import com.reebo.ethsync.core.serialization.Schemas.FullTransaction
 import com.reebo.ethsync.core.serialization.{AvroSerializer, Transformer}
 import com.reebo.ethsync.core.web3.{AggressiveLifter, Cluster, ClusterBlockRetriever, Web3Node}
 import com.sksamuel.avro4s.RecordFormat
@@ -34,7 +34,7 @@ import monix.kafka.{KafkaProducer, KafkaProducerConfig, Serializer}
 import monix.reactive.Observable
 import org.apache.kafka.clients.producer.ProducerRecord
 
-import concurrent.duration._
+import scala.concurrent.duration._
 
 object Main extends App with LazyLogging {
 
@@ -70,8 +70,9 @@ object Setup extends LazyLogging {
     lazy val consumerScheduler = Scheduler.io(name = s"$network-consumer")
     lazy val kafkaScheduler = Scheduler.io(name = s"$network-kafka")
 
-    val sink: TXSink = setupSink(config.brokers, "http://schema-registry:8081",
+    val sink: TXSink = setupSink(config.brokers, config.schemaRegistry,
       kafkaScheduler, config.topic)
+
     val nodes = setupNodes(network, config.nodes)
     val cluster = Cluster(nodes)
 
@@ -95,10 +96,7 @@ object Setup extends LazyLogging {
                         scheduler: Scheduler,
                         topic: String) = new TXSink {
 
-    val producerCfg = KafkaProducerConfig.default.copy(
-      bootstrapServers = brokers.toList
-    )
-
+    val producerCfg = KafkaProducerConfig.default.copy(bootstrapServers = brokers.toList)
     val serializerCfg = Map("schema.registry.url" -> schemaRegistry)
     implicit val serializer: Serializer[Object] = AvroSerializer.serializer(serializerCfg, false)
     private val producer = KafkaProducer[String, Object](producerCfg, scheduler)
@@ -135,7 +133,8 @@ object Setup extends LazyLogging {
 case class Config(networkId: String,
                   nodes: Seq[String],
                   brokers: Seq[String],
-                  topic: String)
+                  topic: String,
+                  schemaRegistry: String)
 
 object Config {
   def env(name: String): String = {
@@ -146,6 +145,7 @@ object Config {
     Config(env("NAME"),
       env("NODES").split(","),
       env("BROKERS").split(","),
-      env("TOPIC"))
+      env("TOPIC"),
+      env("SCHEMA_REGISTRY"))
 }
 

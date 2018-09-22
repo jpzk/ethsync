@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # run zookeeper
 docker run -d \
     --net=confluent \
@@ -103,6 +104,7 @@ docker run -d \
     --name=ethsync \
     -e NODES=http://178.128.204.38:8545 \
     -e BROKERS=kafka:9092 \
+    -e SCHEMA_REGISTRY=http://schema-registry:8081 \
     -e TOPIC=full-transactions \
     -e FORMAT=full\
     -e NAME=mainnet \
