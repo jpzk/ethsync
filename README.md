@@ -9,69 +9,11 @@ ethsync is a bridge between Ethereum nodes and Kafka. It stores in-flight transa
 
 * Ready to use Docker image
 * At-least-once guarantee for blocks, transactions and receipts
+* KSQL-compatible
 * Fault-tolerant (backed by Kafka brokers)
 * Serialization of transactions and receipts into Avro Binary format
 * Input validation for transaction and receipt objects
 * Different output formats
-
-## Quickstart on Docker
-
-For testing you can run it in the [Single Node Basic Deployment on Docker](https://docs.confluent.io/current/installation/docker/docs/installation/single-node-client.html) supplied by confluent. After setting up your Zookeeper, Kafka environment, you can build the Docker image for ethsync locally and run it. Make sure to supply a synced Geth or Parity node.
-
-```
-$ sbt docker
-$ docker run \ 
-    --net=confluent \
-    --name=ethsync \
-    -e NODES=http://178.128.204.30:8545 \
-    -e BROKERS=kafka:9092 \
-    -e SCHEMA_REGISTRY=http://schema-registry:8081 \
-    -e TOPIC=full-transactions \
-    -e FORMAT=full \
-    -e NAME=mainnet \
-    com.reebo/core
-```
-
-## Output Schemas 
-
-Every output schema has its own topic. E.g. if you run ethsync with the full flag it will use the full-transactions topic as a sink. This is a Kafka convention, and it is pretty handy for later schema evolution. 
-
-| Topic | Description | Flag | Schema | 
-| --- | --- | --- | --- | 
-| full-transactions | Avro Binary format. Maintains structure and data from JSON-RPC including receipt, see [Schema](https://github.com/jpzk/ethsync/blob/master/avro/FullTransaction.json). | full | [FullTransaction.json](https://github.com/jpzk/ethsync/blob/master/avro/FullTransaction.json)  |
-| compact-transactions | Avro Binary Format. Without redundant data, some fields are removed, see [Schema](https://github.com/jpzk/ethsync/blob/master/avro/CompactTransaction.json). | compact | [CompactTransaction.json](https://github.com/jpzk/ethsync/blob/master/avro/CompactTransaction.json) |
-
-## Benchmark 
-
-### Replay performance
-
-For sequentially replaying blocks and transaction receipts from one Geth 1.8.11-stable-dea1ce05 node (fast sync) on a Digital Ocean instance 16GB Intel(R) Xeon(R) CPU E5-2650 v4 @ 2.20GHz it took on average 160ms per block. Based on this estimation the whole blockchain until 6325523 would take 263 hours or 11 days. This estimation was done by replaying blocks 5349046 - 5350129 (1083 blocks). 
-
-### Storage
-
-For storing the transactions and receipt on Kafka in the [FullTransaction](https://github.com/jpzk/ethsync/blob/master/avro/FullTransaction.json) binary format (without schema), on average it takes 1.25kb/TX, 130.5kb/block (on average 100 TX/block) so that for storing the whole Ethereum blockchain until block 6325438, we could estimate 806.100 Mb or 806 Gb to store. This estimation was done by replaying blocks 5309598 - 5324598 (15000 blocks). 
-
-## Setting Block Offset
-
-In case you want to change the block offset, you can use the following program. You can pass the desired block offset via an environment variable. Make sure ethsync is not running. 
-
-```$xslt
-$ docker run -d \
-    --net=confluent \
-    --name=ethsync_setOffset \
-    -e KAFKA_BROKER=kafka:9092 \
-    -e OFFSET=450000\
-    --entrypoint "java" \
-    com.reebo/core \
-    -cp "/app/ethsync.jar" \
-    "com.reebo.ethsync.core.utils.SettingBlockOffset"
-```
-
-## Why is this important?
-
-* Transparency and data access provides trust 
-* Open source allows having no 3rd party dependencies like Infura or Aleth.io
-* Allowing companies to build data products on top of accessible Ethereum data
 
 ## Known Caveats / Issues
 * In multi-instance mode, where there is more than one Eventeum instance in a system, your services are required to handle duplicate messages gracefully, as each instance will broadcast the same events.
