@@ -62,7 +62,6 @@ object ClusterProtocol {
       */
     def getBlockByHeight(height: Long): Task[FullBlock[ShallowTX]]
   }
-
 }
 
 trait BlockRetriever {
@@ -95,7 +94,7 @@ object Protocol {
 
   case class ShallowTX(data: TXData) extends TX
 
-  case class TXData(hash: String, data: Json)
+  case class TXData(hash: String, timestamp: Long, data: Json)
 
   sealed trait TX {
     val data: TXData
@@ -105,7 +104,7 @@ object Protocol {
 
   case class ShallowBlock(data: BlockData)
 
-  case class BlockData(hash: String, number: Long, data: Json)
+  case class BlockData(hash: String, number: Long, timestamp: Long, data: Json)
 
   sealed trait Block {
     val data: BlockData
@@ -137,7 +136,7 @@ object EthRequests {
   def pollChanges(filterId: String) = RPCRequest("2.0", "eth_getFilterChanges", Seq(filterId), Some("2"))
 }
 
-case class RawBlock(hash: String, number: String, data: Json)
+case class RawBlock(hash: String, number: String, timestamp: String, data: Json)
 
 /**
   * Retry filter
@@ -145,7 +144,6 @@ case class RawBlock(hash: String, number: String, data: Json)
 trait RetryFilter {
   def retry[A](logger: Logger, source: Task[A]): Task[A]
 }
-
 
 /**
   * Used to lift ShallowTX to FullTX

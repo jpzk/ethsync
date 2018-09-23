@@ -105,7 +105,7 @@ object Setup extends LazyLogging {
     override def sink(tx: Protocol.FullTX): Task[Unit] = (for {
       ftx <- Task.now(Transformer.transform(tx, identity))
       txobj <- Task.now(ftx.get)
-      record <- Task.now(new ProducerRecord[String, Object](topic, "", format.to(txobj)))
+      record <- Task.now(new ProducerRecord[String, Object](topic, 0, "", format.to(txobj)))
       _ <- producer.send(record)
     } yield ())
       .onErrorHandleWith { e =>

@@ -22,7 +22,8 @@ object Schemas {
 
   def FullTransaction2CompactTransaction(tx: FullTransaction) = {
     val txd = tx.tx
-    CompactTransaction(txd.blockHash,
+    CompactTransaction(
+      txd.blockHash,
       txd.blockNumber,
       txd.fromAddr,
       txd.hash,
@@ -36,7 +37,7 @@ object Schemas {
     )
   }
 
-  case class FullTransaction(tx: Transaction, receipt: Receipt)
+  case class FullTransaction(blockNumber: Long, minedAt: Long, tx: Transaction, receipt: Receipt)
 
   case class CompactTransaction(blockHash: String,
                                 blockNumber: Long,

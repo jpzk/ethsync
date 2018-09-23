@@ -167,6 +167,6 @@ object Transformer extends LazyLogging {
   def transform[T: SchemaFor : ToRecord](tx: FullTX, f: FullTransaction => T) = for {
     txn <- Transformer.json2Transaction(tx.data.data)
     receipt <- Transformer.json2Receipt(tx.receipt)
-  } yield f(FullTransaction(txn, receipt))
+  } yield f(FullTransaction(txn.blockNumber, tx.data.timestamp, txn, receipt))
 }
 

@@ -241,6 +241,7 @@ class TXDispatcherSpec extends FlatSpec with MockFactory with Matchers {
   def genShallowTX(hash: String): ShallowTX = {
     val data = TXData(
       hash,
+      1L,
       "{}".asJson
     )
     ShallowTX(data)

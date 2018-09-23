@@ -79,19 +79,22 @@ case class Web3Node(idName: String, url: String)(implicit backend: HTTPBackend)
     * @return
     */
   def convert(b: RawBlock): FullBlock[ShallowTX] = {
+    val timestamp = java.lang.Long.parseLong(b.timestamp.drop(2).trim(), 16) * 1000
+    val number = java.lang.Long.parseLong(b.number.drop(2).trim(), 16)
+
     val txs = b.data.hcursor.downField("transactions").as[Seq[Json]] match {
       case Left(e) => throw new Exception(e.getMessage())
       case Right(txs) => txs.map { txJson =>
         txJson.hcursor.downField("hash").as[String] match {
           case Left(e) => throw new Exception(e.getMessage())
-          case Right(hash) => ShallowTX(TXData(hash, txJson))
+          case Right(hash) => ShallowTX(TXData(hash, Long2long(timestamp), txJson))
         }
       }
     }
-    val number = java.lang.Long.parseLong(b.number.drop(2).trim(), 16)
     FullBlock(BlockData(
       b.hash,
       Long2long(number),
+      Long2long(timestamp),
       b.data
     ), txs)
   }
@@ -143,6 +146,7 @@ case class Web3Node(idName: String, url: String)(implicit backend: HTTPBackend)
   *
   */
 case class Web3(url: String) extends LazyLogging {
+
   import com.reebo.ethsync.core.CirceHelpers._
 
   /**
@@ -171,6 +175,7 @@ case class Web3(url: String) extends LazyLogging {
       case Left(h) => Seq(h)
       case Right(hashes) => hashes
     }
+
   /**
     * Getting TX receipt for specific hash
     *
@@ -199,7 +204,9 @@ case class Web3(url: String) extends LazyLogging {
         .getOrElse(throw new Exception("Cannot decode"))
       val hash = cursor.downField("hash").as[String]
         .getOrElse(throw new Exception("Cannot decode"))
-      RawBlock(hash, number, json)
+      val timestamp = cursor.downField("timestamp").as[String]
+        .getOrElse(throw new Exception("Cannot decode"))
+      RawBlock(hash, number, timestamp, json)
     }
 
   /**
@@ -218,7 +225,9 @@ case class Web3(url: String) extends LazyLogging {
         .getOrElse(throw new Exception("Cannot decode"))
       val hash = cursor.downField("hash").as[String]
         .getOrElse(throw new Exception("Cannot decode"))
-      RawBlock(hash, number, json)
+      val timestamp = cursor.downField("timestamp").as[String]
+        .getOrElse(throw new Exception("Cannot decode"))
+      RawBlock(hash, number, timestamp, json)
     }
 
   private def base(implicit backend: HTTPBackend) =

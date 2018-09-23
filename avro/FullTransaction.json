@@ -3,6 +3,12 @@
   "name" : "FullTransaction",
   "namespace" : "com.reebo.ethsync.core.serialization",
   "fields" : [ {
+    "name" : "blockNumber",
+    "type" : "long"
+  }, {
+    "name" : "minedAt",
+    "type" : "long"
+  }, {
     "name" : "tx",
     "type" : {
       "type" : "record",

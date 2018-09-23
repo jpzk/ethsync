@@ -162,11 +162,11 @@ class BlockDispatcherSpec extends FlatSpec with MockFactory with Matchers {
   }
 
   def genBlockData(hash: String, offset: Long): BlockData = {
-    BlockData(hash, offset, "{}".asJson)
+    BlockData(hash, offset, 1L, "{}".asJson)
   }
 
   def genShallowTX(hash: String): ShallowTX = {
-    val data = TXData(hash, "{}".asJson)
+    val data = TXData(hash, 1L, "{}".asJson)
     ShallowTX(data)
   }
 }
