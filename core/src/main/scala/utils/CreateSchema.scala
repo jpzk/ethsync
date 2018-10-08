@@ -18,7 +18,7 @@ package com.reebo.ethsync.core.utils
 
 import java.io.{File, PrintWriter}
 
-import com.reebo.ethsync.core.serialization.Schemas.{CompactLog, CompactTransaction, FullTransaction, Log, Transaction}
+import com.reebo.ethsync.core.serialization.Schemas._
 import com.sksamuel.avro4s.AvroSchema
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.generic.auto._
@@ -37,12 +37,14 @@ object CreateSchema extends App with LazyLogging {
   writeToFile(AvroSchema[FullTransaction].toString(false), "avro/FullTransactionImport.json", importF)
   writeToFile(AvroSchema[Transaction].toString(false), "avro/TransactionImport.json", importF)
   writeToFile(AvroSchema[CompactTransaction].toString(false), "avro/CompactTransactionImport.json", importF)
+  writeToFile(AvroSchema[FullTransactionKey].toString(false), "avro/FullTransactionKeyImport.json", importF)
 
   writeToFile(AvroSchema[Log].toString(true), "avro/Log.json")
   writeToFile(AvroSchema[CompactLog].toString(true), "avro/CompactLog.json")
   writeToFile(AvroSchema[FullTransaction].toString(true), "avro/FullTransaction.json")
   writeToFile(AvroSchema[Transaction].toString(true), "avro/Transaction.json")
   writeToFile(AvroSchema[CompactTransaction].toString(true), "avro/CompactTransaction.json")
+  writeToFile(AvroSchema[FullTransactionKey].toString(true), "avro/FullTransactionKey.json")
 
   def writeToFile(content: String, filename: String, w: (String => String) = identity): Unit = {
     val writer = new PrintWriter(new File(filename))

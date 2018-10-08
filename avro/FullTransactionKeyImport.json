@@ -1,0 +1,3 @@
+{
+  "schema" : "{\"type\":\"record\",\"name\":\"FullTransactionKey\",\"namespace\":\"com.reebo.ethsync.core.serialization\",\"fields\":[{\"name\":\"key\",\"type\":\"string\"}]}"
+}
