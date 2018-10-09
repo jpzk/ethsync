@@ -33,6 +33,8 @@ import monix.execution.Scheduler
 import monix.kafka.{KafkaProducer, KafkaProducerConfig, Serializer}
 import monix.reactive.Observable
 import org.apache.kafka.clients.producer.ProducerRecord
+import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
+
 
 import scala.concurrent.duration._
 
@@ -98,16 +100,14 @@ object Setup extends LazyLogging {
 
     val producerCfg = KafkaProducerConfig.default.copy(bootstrapServers = brokers.toList)
     val serializerCfg = Map("schema.registry.url" -> schemaRegistry)
-    implicit val serializer: Serializer[Object] = AvroSerializer.serializer(serializerCfg, false)
-    private val producer = KafkaProducer[Object, Object](producerCfg, scheduler)
-    implicit val format = RecordFormat[FullTransaction]
-    implicit val keyFormat = RecordFormat[FullTransactionKey]
+    //implicit val serializer: Serializer[Object] = AvroSerializer.serializer(serializerCfg, false)
+    private val producer = KafkaProducer[String, String](producerCfg, scheduler)
+    //implicit val format = RecordFormat[FullTransaction]
 
     override def sink(tx: Protocol.FullTX): Task[Unit] = (for {
       ftx <- Task.now(Transformer.transform(tx, identity))
       txobj <- Task.now(ftx.get)
-      key <- Task.now(FullTransactionKey(""))
-      record <- Task.now(new ProducerRecord[Object, Object](topic, 0, keyFormat.to(key), format.to(txobj)))
+      record <- Task.now(new ProducerRecord[String, String](topic, 0, "", txobj.asJson.noSpaces))
       _ <- producer.send(record)
     } yield ())
       .onErrorHandleWith { e =>

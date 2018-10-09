@@ -37,7 +37,7 @@ object Schemas {
     )
   }
 
-  case class FullTransactionKey(key: String)
+  case class FullTransactionKey(partition: String)
 
   case class FullTransaction(blockNumber: Long, minedAt: Long, tx: Transaction, receipt: Receipt)
 

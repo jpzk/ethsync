@@ -37,7 +37,7 @@ docker run -d \
   -e KSQL_OPTS="-Dksql.schema.registry.url=http://schema-registry:8081" \
   confluentinc/cp-ksql-server:5.0.0
 
-sleep 10
+sleep 15
 
 # create a topic for full transactions
 docker run \
@@ -102,7 +102,7 @@ docker run -d \
 docker run -d \
     --net=confluent \
     --name=ethsync \
-    -e NODES=http://178.128.204.38:8545 \
+    -e NODES=http://206.189.192.144:8545 \
     -e BROKERS=kafka:9092 \
     -e SCHEMA_REGISTRY=http://schema-registry:8081 \
     -e TOPIC=full-transactions \
