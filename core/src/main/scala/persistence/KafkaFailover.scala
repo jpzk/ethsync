@@ -41,13 +41,13 @@ import scala.language.implicitConversions
   * @param scheduler scheduler to run the Kafka producer on
   * @param brokers   sequence of Kafka brokers
   */
-class KafkaTXPersistence(scheduler: Scheduler, brokers: Seq[String])
+class KafkaTXPersistence(name: String, scheduler: Scheduler, brokers: Seq[String])
   extends KafkaBacked[Seq[ShallowTX], String](scheduler, brokers)
     with TXPersistence
     with LazyLogging {
 
-  val GroupId = "tx-persistence"
-  val Topic = "tx-persistence"
+  val GroupId = s"${name}-tx-persistence"
+  val Topic = s"${name}-tx-persistence"
   val initialValue: String = "[]"
   val store: Atomic[Seq[ShallowTX]] = AtomicAny(Seq[ShallowTX]())
 
@@ -113,15 +113,15 @@ class KafkaTXPersistence(scheduler: Scheduler, brokers: Seq[String])
   * @param scheduler scheduler to run the Kafka producer on
   * @param brokers   sequence of Kafka brokers
   */
-class KafkaBlockOffset(scheduler: Scheduler, brokers: Seq[String])
+class KafkaBlockOffset(name: String, scheduler: Scheduler, brokers: Seq[String])
   extends KafkaBacked[Long, java.lang.Long](scheduler, brokers)
     with BlockOffsetPersistence
     with LazyLogging {
 
   val store = AtomicLong(0L)
   val initialValue = new java.lang.Long(0L)
-  val GroupId: String = "block-offset"
-  val Topic: String = "block-offset"
+  val GroupId: String = s"${name}-block-offset"
+  val Topic: String = s"${name}-block-offset"
 
   private val consumerCfg = KafkaConsumerConfig.default.copy(
     bootstrapServers = brokers.toList,

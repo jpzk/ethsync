@@ -21,7 +21,7 @@ import java.nio.ByteBuffer
 import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
 import com.reebo.ethsync.core._
 import com.reebo.ethsync.core.persistence.{KafkaBlockOffset, KafkaTXPersistence}
-import com.reebo.ethsync.core.serialization.Schemas.{FullTransaction, FullTransactionKey}
+import com.reebo.ethsync.core.serialization.Schemas.FullTransaction
 import com.reebo.ethsync.core.serialization.{AvroSerializer, Transformer}
 import com.reebo.ethsync.core.web3.{AggressiveLifter, Cluster, ClusterBlockRetriever, Web3Node}
 import com.sksamuel.avro4s.RecordFormat
@@ -33,8 +33,6 @@ import monix.execution.Scheduler
 import monix.kafka.{KafkaProducer, KafkaProducerConfig, Serializer}
 import monix.reactive.Observable
 import org.apache.kafka.clients.producer.ProducerRecord
-import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
-
 
 import scala.concurrent.duration._
 
@@ -66,11 +64,12 @@ object Main extends App with LazyLogging {
 object Setup extends LazyLogging {
   def default(config: Config): Task[Unit] = {
     val network = config.networkId
-    logger.info(s"Starting setup for $network")
+    val name = config.name
+    logger.info(s"Starting setup for $name in network $network")
 
-    lazy val prodScheduler = Scheduler.io(name = s"$network-prod")
-    lazy val consumerScheduler = Scheduler.io(name = s"$network-consumer")
-    lazy val kafkaScheduler = Scheduler.io(name = s"$network-kafka")
+    lazy val prodScheduler = Scheduler.io(name = s"$name-$network-prod")
+    lazy val consumerScheduler = Scheduler.io(name = s"$name-$network-consumer")
+    lazy val kafkaScheduler = Scheduler.io(name = s"$name-$network-kafka")
 
     val sink: TXSink = setupSink(config.brokers, config.schemaRegistry,
       kafkaScheduler, config.topic)
@@ -78,11 +77,11 @@ object Setup extends LazyLogging {
     val nodes = setupNodes(network, config.nodes)
     val cluster = Cluster(nodes)
 
-    val txPersistence = new KafkaTXPersistence(kafkaScheduler, config.brokers)
+    val txPersistence = new KafkaTXPersistence(name, kafkaScheduler, config.brokers)
     val bDispatcher = BlockDispatcher(network,
       setupTXDispatcher(network, cluster, sink, txPersistence),
       ClusterBlockRetriever(cluster),
-      new KafkaBlockOffset(kafkaScheduler, config.brokers))
+      new KafkaBlockOffset(name, kafkaScheduler, config.brokers))
 
     for {
       ch <- MVar.empty[Seq[FullBlock[ShallowTX]]]
@@ -100,14 +99,14 @@ object Setup extends LazyLogging {
 
     val producerCfg = KafkaProducerConfig.default.copy(bootstrapServers = brokers.toList)
     val serializerCfg = Map("schema.registry.url" -> schemaRegistry)
-    //implicit val serializer: Serializer[Object] = AvroSerializer.serializer(serializerCfg, false)
-    private val producer = KafkaProducer[String, String](producerCfg, scheduler)
-    //implicit val format = RecordFormat[FullTransaction]
+    implicit val serializer: Serializer[Object] = AvroSerializer.serializer(serializerCfg, false)
+    private val producer = KafkaProducer[String, Object](producerCfg, scheduler)
+    implicit val format = RecordFormat[FullTransaction]
 
     override def sink(tx: Protocol.FullTX): Task[Unit] = (for {
       ftx <- Task.now(Transformer.transform(tx, identity))
       txobj <- Task.now(ftx.get)
-      record <- Task.now(new ProducerRecord[String, String](topic, 0, "", txobj.asJson.noSpaces))
+      record <- Task.now(new ProducerRecord[String, Object](topic, 0, "", format.to(txobj)))
       _ <- producer.send(record)
     } yield ())
       .onErrorHandleWith { e =>
@@ -132,7 +131,8 @@ object Setup extends LazyLogging {
       BackoffRetry(10, 1.seconds))
 }
 
-case class Config(networkId: String,
+case class Config(name: String,
+                  networkId: String,
                   nodes: Seq[String],
                   brokers: Seq[String],
                   topic: String,
@@ -145,6 +145,7 @@ object Config {
 
   def load: Config =
     Config(env("NAME"),
+      env("NETWORK"),
       env("NODES").split(","),
       env("BROKERS").split(","),
       env("TOPIC"),
