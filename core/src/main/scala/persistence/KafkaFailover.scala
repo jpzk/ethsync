@@ -51,6 +51,8 @@ class KafkaTXPersistence(name: String, scheduler: Scheduler, brokers: Seq[String
   val initialValue: String = "[]"
   val store: Atomic[Seq[ShallowTX]] = AtomicAny(Seq[ShallowTX]())
 
+  logger.info(s"Reading tx persistence from $Topic as $GroupId")
+
   private val consumerCfg = KafkaConsumerConfig.default.copy(
     bootstrapServers = brokers.toList,
     groupId = GroupId
@@ -122,6 +124,8 @@ class KafkaBlockOffset(name: String, scheduler: Scheduler, brokers: Seq[String])
   val initialValue = new java.lang.Long(0L)
   val GroupId: String = s"${name}-block-offset"
   val Topic: String = s"${name}-block-offset"
+
+  logger.info(s"Reading block offset from $Topic as $GroupId")
 
   private val consumerCfg = KafkaConsumerConfig.default.copy(
     bootstrapServers = brokers.toList,

@@ -35,6 +35,9 @@ object SettingBlockOffset extends App with LazyLogging {
   val broker = sys.env.getOrElse(s"KAFKA_BROKER", throw new Exception(
     "Supply kafka brokers"
   ))
+  val name = sys.env.getOrElse(s"NAME", throw new Exception(
+    "Supply name"
+  ))
   val offset = sys.env.getOrElse(s"OFFSET", throw new Exception(
     "Supply offset with OFFSET"
   ))
@@ -42,7 +45,7 @@ object SettingBlockOffset extends App with LazyLogging {
     bootstrapServers = List(broker)
   )
   val producer = KafkaProducer[String, java.lang.Long](producerCfg, kafkaScheduler)
-  producer.send("block-offset", offset.toLong)
+  producer.send(s"${name}-block-offset", offset.toLong)
     .map { _ => producer.close() }
     .runSyncUnsafe(1.minute)
     .runOnComplete { _ =>
