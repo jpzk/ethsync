@@ -1,3 +1,5 @@
+docker stop grafana
+docker stop graphite
 docker stop kafka
 docker stop zookeeper
 docker stop ethsync
@@ -6,6 +8,8 @@ docker stop ksql-server
 docker stop ethsync_setOffset
 docker stop ksql-cli 
 
+docker rm grafana
+docker rm graphite
 docker rm kafka
 docker rm zookeeper
 docker rm ethsync

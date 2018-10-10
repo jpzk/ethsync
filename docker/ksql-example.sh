@@ -1,4 +1,33 @@
 #!/usr/bin/env bash
+
+mkdir -p /tmp/data/graphite/{statsd,configs,data}
+
+docker run \
+ -d \
+ --name graphite \
+ --restart=always \
+ --net=confluent \
+ -p 80:80 \
+ -p 8080:8080 \
+ -p 2003-2004:2003-2004 \
+ -p 2023-2024:2023-2024 \
+ -p 8125:8125/udp \
+ -p 8126:8126 \
+ -v /tmp/data/graphite/configs:/opt/graphite/conf \
+ -v /tmp/data/graphite/data:/opt/graphite/storage \
+ -v /tmp/data/graphite/statsd:/opt/statsd \
+ graphiteapp/graphite-statsd
+
+# grafana
+docker run \
+  -d \
+  -p 3000:3000 \
+  --name=grafana \
+  --net=confluent \
+  -e "GF_SERVER_ROOT_URL=http://grafana.server.name" \
+  -e "GF_SECURITY_ADMIN_PASSWORD=some" \
+  grafana/grafana
+
 # run zookeeper
 docker run -d \
     --net=confluent \
@@ -75,13 +104,13 @@ docker run \
 docker run \
   --net=confluent \
   --rm confluentinc/cp-kafka:5.0.0 \
-  kafka-topics --create --topic block-offset --partitions 1 --replication-factor 1 \
+  kafka-topics --create --topic ethsync-0-block-offset --partitions 1 --replication-factor 1 \
   --if-not-exists --zookeeper zookeeper:2181
 
 docker run \
   --net=confluent \
   --rm confluentinc/cp-kafka:5.0.0 \
-  kafka-topics --create --topic tx-persistence --partitions 1 --replication-factor 1 \
+  kafka-topics --create --topic ethsync-0-tx-persistence --partitions 1 --replication-factor 1 \
   --if-not-exists --zookeeper zookeeper:2181
 
 docker exec -ti schema-registry chmod +x /avro/import.sh
@@ -91,6 +120,7 @@ docker exec -ti schema-registry /avro/import.sh
 docker run -d \
     --net=confluent \
     --name=ethsync_setOffset \
+    -e NAME=ethsync-0 \
     -e KAFKA_BROKER=kafka:9092 \
     -e OFFSET=6355000\
     --entrypoint "java" \
@@ -102,15 +132,18 @@ docker run -d \
 docker run -d \
     --net=confluent \
     --name=ethsync \
+    -e GRAPHITE=graphite \
     -e NODES=http://206.189.192.144:8545 \
     -e BROKERS=kafka:9092 \
     -e SCHEMA_REGISTRY=http://schema-registry:8081 \
     -e TOPIC=full-transactions \
     -e FORMAT=full\
-    -e NAME=mainnet \
+    -e NAME=ethsync-0 \
+    -e NETWORK=mainnet \
     com.reebo/core
 
 docker run -it \
 	--name=ksql-cli \
 	--net=confluent \
 	confluentinc/cp-ksql-cli:5.0.0 http://ksql-server:8088
+

@@ -17,7 +17,6 @@
 package com.reebo.ethsync.core.utils
 
 import java.nio.ByteBuffer
-
 import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
 import com.reebo.ethsync.core._
 import com.reebo.ethsync.core.persistence.{KafkaBlockOffset, KafkaTXPersistence}
@@ -65,14 +64,15 @@ object Setup extends LazyLogging {
   def default(config: Config): Task[Unit] = {
     val network = config.networkId
     val name = config.name
+    val metrics = new Metrics(name, config.graphite)
     logger.info(s"Starting setup for $name in network $network")
 
     lazy val prodScheduler = Scheduler.io(name = s"$name-$network-prod")
     lazy val consumerScheduler = Scheduler.io(name = s"$name-$network-consumer")
     lazy val kafkaScheduler = Scheduler.io(name = s"$name-$network-kafka")
 
-    val sink: TXSink = setupSink(config.brokers, config.schemaRegistry,
-      kafkaScheduler, config.topic)
+    val sink: TXSink = setupSink(config.brokers, metrics,
+      config.schemaRegistry, kafkaScheduler, config.topic)
 
     val nodes = setupNodes(network, config.nodes)
     val cluster = Cluster(nodes)
@@ -81,7 +81,9 @@ object Setup extends LazyLogging {
     val bDispatcher = BlockDispatcher(network,
       setupTXDispatcher(network, cluster, sink, txPersistence),
       ClusterBlockRetriever(cluster),
-      new KafkaBlockOffset(name, kafkaScheduler, config.brokers))
+      new KafkaBlockOffset(name, kafkaScheduler, config.brokers),
+      Some(metrics)
+    )
 
     for {
       ch <- MVar.empty[Seq[FullBlock[ShallowTX]]]
@@ -93,6 +95,7 @@ object Setup extends LazyLogging {
   }
 
   private def setupSink(brokers: Seq[String],
+                        metrics: Metrics,
                         schemaRegistry: String,
                         scheduler: Scheduler,
                         topic: String) = new TXSink {
@@ -102,17 +105,19 @@ object Setup extends LazyLogging {
     implicit val serializer: Serializer[Object] = AvroSerializer.serializer(serializerCfg, false)
     private val producer = KafkaProducer[String, Object](producerCfg, scheduler)
     implicit val format = RecordFormat[FullTransaction]
+    val txMeter = metrics.registry.meter("tx-records-sent")
 
     override def sink(tx: Protocol.FullTX): Task[Unit] = (for {
       ftx <- Task.now(Transformer.transform(tx, identity))
       txobj <- Task.now(ftx.get)
       record <- Task.now(new ProducerRecord[String, Object](topic, 0, "", format.to(txobj)))
       _ <- producer.send(record)
-    } yield ())
-      .onErrorHandleWith { e =>
-        logger.error(e.getMessage, e)
-        Task.raiseError(e)
-      }
+    } yield {
+      txMeter.mark()
+    }).onErrorHandleWith { e =>
+      logger.error(e.getMessage, e)
+      Task.raiseError(e)
+    }
   }
 
   private def setupNodes(networkId: String, nodes: Seq[String]): Seq[Web3Node] = {
@@ -136,12 +141,12 @@ case class Config(name: String,
                   nodes: Seq[String],
                   brokers: Seq[String],
                   topic: String,
-                  schemaRegistry: String)
+                  schemaRegistry: String,
+                  graphite: Option[String])
 
 object Config {
-  def env(name: String): String = {
+  def env(name: String): String =
     sys.env.getOrElse(s"${name.toUpperCase()}", throw new Exception(s"${name} not found"))
-  }
 
   def load: Config =
     Config(env("NAME"),
@@ -149,6 +154,7 @@ object Config {
       env("NODES").split(","),
       env("BROKERS").split(","),
       env("TOPIC"),
-      env("SCHEMA_REGISTRY"))
+      env("SCHEMA_REGISTRY"),
+      sys.env.get("GRAPHITE"))
 }
 

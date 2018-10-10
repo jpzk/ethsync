@@ -17,6 +17,7 @@
 package com.reebo.ethsync.core
 
 import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
+import com.reebo.ethsync.core.utils.Metrics
 import com.typesafe.scalalogging.LazyLogging
 import monix.eval.{MVar, Task}
 
@@ -79,7 +80,9 @@ case class BlockDispatcher(id: String,
                            tXDispatcher: TXDispatcher,
                            retriever: BlockRetriever,
                            persistence: BlockOffsetPersistence,
-                           offset: Long = -1L) extends LazyLogging {
+                           metrics: Option[Metrics] = None,
+                           offset: Long = -1L,
+                          ) extends LazyLogging {
 
   /**
     * Initializing block dispatcher; gets offset from persistence
@@ -93,7 +96,6 @@ case class BlockDispatcher(id: String,
     _ <- Task.now(logger.info("Block dispatcher initialized with offset", offset))
   } yield this.copy(tXDispatcher = initializedTX, offset = offset)
 
-
   /**
     * Dispatch a block
     *
@@ -104,9 +106,11 @@ case class BlockDispatcher(id: String,
     newDis <- dispatchTXs(block.txs)
     ret <- newDis match {
       case Success(r) =>
-        this.persistence.setLast(block.data.number).flatMap {
-          _ => Task(this.copy(tXDispatcher = r, offset = block.data.number))
-        }
+        for {
+          _ <- this.persistence.setLast(block.data.number)
+          _ <- Task.now(metrics.foreach(_.setBlockOffset(block.data.number)))
+          dispatch <- Task(this.copy(tXDispatcher = r, offset = block.data.number))
+        } yield dispatch
       case Failure(e) =>
         logger.error("Could not acknowledge block; failure in TXdispatcher", e)
         Task(this)

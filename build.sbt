@@ -42,6 +42,7 @@ lazy val core = (project in file("core")).
   settings(
     libraryDependencies ++= Seq(
       "io.dropwizard.metrics" % "metrics-core" % "4.0.3",
+      "io.dropwizard" % "dropwizard-metrics-graphite" % "1.3.7",
       "io.circe" %% "circe-generic" % "0.9.3",
       "io.monix" %% "monix" % "3.0.0-RC1",
       "com.sksamuel.avro4s" %% "avro4s-core" % "1.9.0"
