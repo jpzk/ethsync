@@ -22,7 +22,7 @@
     "type" : [ "null", "string" ]
   }, {
     "name" : "weiValue",
-    "type" : "long"
+    "type" : "string"
   }, {
     "name" : "status",
     "type" : "int"

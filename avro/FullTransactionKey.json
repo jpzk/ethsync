@@ -3,7 +3,7 @@
   "name" : "FullTransactionKey",
   "namespace" : "com.reebo.ethsync.core.serialization",
   "fields" : [ {
-    "name" : "key",
+    "name" : "partition",
     "type" : "string"
   } ]
 }

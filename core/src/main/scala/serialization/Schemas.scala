@@ -47,7 +47,7 @@ object Schemas {
                                 hash: String,
                                 input: String,
                                 toAddr: Option[String],
-                                weiValue: Long,
+                                weiValue: String,
                                 status: Int,
                                 contractAddress: Option[String],
                                 logs: Array[CompactLog],
@@ -88,7 +88,7 @@ object Schemas {
                          nonce: String,
                          toAddr: Option[String],
                          transactionIndex: Int,
-                         weiValue: Long,
+                         weiValue: String,
                          v: Byte,
                          r: String,
                          s: String)

@@ -34,7 +34,7 @@
     "type" : "int"
   }, {
     "name" : "weiValue",
-    "type" : "long"
+    "type" : "string"
   }, {
     "name" : "v",
     "type" : "int"
