@@ -52,17 +52,15 @@ case class Cluster(nodes: Seq[Node] = Seq()) extends LazyLogging {
     for {
       receipt <- node.getTransactionReceipt(tx.data.hash)
       res <- receipt match {
-        case Success(r) =>
+        case Some(r) =>
           logger.debug(s"lifted $hash with ${node.id}")
           Task.now(FullTX(tx.data, r))
-        case Failure(e) =>
-          logger.error(s"could not lift $hash with ${node.id}", e)
+        case None =>
           Task.raiseError(new Exception("Could not get transaction receipt"))
       }
     } yield NodeResponse(node, res)
   }
 }
-
 
 case class ClusterBlockRetriever(cluster: Cluster) extends BlockRetriever {
 
