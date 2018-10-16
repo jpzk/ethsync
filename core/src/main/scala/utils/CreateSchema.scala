@@ -38,6 +38,7 @@ object CreateSchema extends App with LazyLogging {
   writeToFile(AvroSchema[Transaction].toString(false), "avro/TransactionImport.json", importF)
   writeToFile(AvroSchema[CompactTransaction].toString(false), "avro/CompactTransactionImport.json", importF)
   writeToFile(AvroSchema[FullTransactionKey].toString(false), "avro/FullTransactionKeyImport.json", importF)
+  writeToFile(AvroSchema[Block].toString(false), "avro/BlockImport.json", importF)
 
   writeToFile(AvroSchema[Log].toString(true), "avro/Log.json")
   writeToFile(AvroSchema[CompactLog].toString(true), "avro/CompactLog.json")
@@ -45,8 +46,9 @@ object CreateSchema extends App with LazyLogging {
   writeToFile(AvroSchema[Transaction].toString(true), "avro/Transaction.json")
   writeToFile(AvroSchema[CompactTransaction].toString(true), "avro/CompactTransaction.json")
   writeToFile(AvroSchema[FullTransactionKey].toString(true), "avro/FullTransactionKey.json")
+  writeToFile(AvroSchema[Block].toString(false), "avro/BlockImport.json")
 
-  def writeToFile(content: String, filename: String, w: (String => String) = identity): Unit = {
+  def writeToFile(content: String, filename: String, w: String => String = identity): Unit = {
     val writer = new PrintWriter(new File(filename))
     writer.write(w(content))
     writer.close()

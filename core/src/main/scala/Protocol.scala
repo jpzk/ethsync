@@ -159,3 +159,10 @@ trait TXSink {
   def sink(tx: FullTX): Task[Unit]
 }
 
+/**
+  * Sink for Block info
+  */
+trait BlockSink {
+  def sink(block: FullBlock[ShallowTX]): Task[Unit]
+}
+

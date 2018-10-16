@@ -127,6 +127,7 @@ case class Web3Node(idName: String, url: String)(implicit backend: HTTPBackend)
     */
   override def subscribeBlocks(ch: MVar[Seq[FullBlock[ShallowTX]]]): Task[Unit] = for {
     filterId <- underlying.subscribe()
+    _ <- Task { logger.info(s"Filter id for subscription is $filterId")}
     ret <- subscribeLoop(filterId, ch)
   } yield ret
 
@@ -171,8 +172,7 @@ case class Web3(url: String) extends LazyLogging {
     */
   def getBlockUpdates(filterId: String, inject: Option[String] = None)
                      (implicit backend: HTTPBackend): Task[Seq[String]] =
-    send[Seq[String], Either[String, Seq[String]]](
-      pollChanges(filterId), inject) map {
+    send[Seq[String], Either[String, Seq[String]]](pollChanges(filterId), inject) map {
       case Left(h) => Seq(h)
       case Right(hashes) => hashes
     }

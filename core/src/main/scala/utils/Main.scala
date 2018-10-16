@@ -17,11 +17,12 @@
 package com.reebo.ethsync.core.utils
 
 import java.nio.ByteBuffer
+
 import com.reebo.ethsync.core.Protocol.{FullBlock, ShallowTX}
 import com.reebo.ethsync.core._
 import com.reebo.ethsync.core.persistence.{KafkaBlockOffset, KafkaTXPersistence}
 import com.reebo.ethsync.core.serialization.Schemas.FullTransaction
-import com.reebo.ethsync.core.serialization.{AvroSerializer, Transformer}
+import com.reebo.ethsync.core.serialization.{AvroSerializer, Schemas, Transformer}
 import com.reebo.ethsync.core.web3.{AggressiveLifter, Cluster, ClusterBlockRetriever, Web3Node}
 import com.sksamuel.avro4s.RecordFormat
 import com.softwaremill.sttp.SttpBackend
@@ -70,9 +71,14 @@ object Setup extends LazyLogging {
     lazy val prodScheduler = Scheduler.io(name = s"$name-$network-prod")
     lazy val consumerScheduler = Scheduler.io(name = s"$name-$network-consumer")
     lazy val kafkaScheduler = Scheduler.io(name = s"$name-$network-kafka")
+    lazy val kafkaTXScheduler = Scheduler.io(name = s"$name-$network-kafka-tx")
+    lazy val kafkaBlocksScheduler = Scheduler.io(name = s"$name-$network-kafka-blocks")
 
-    val sink: TXSink = setupSink(config.brokers, metrics,
-      config.schemaRegistry, kafkaScheduler, config.topic)
+    val txSink: TXSink = setupSink(config.brokers, metrics,
+      config.schemaRegistry, kafkaTXScheduler, config.txTopic)
+
+    val blocksSink: BlockSink = setupBlockSink(config.brokers, metrics,
+      config.schemaRegistry, kafkaBlocksScheduler, config.blocksTopic)
 
     val nodes = setupNodes(network, config.nodes)
     val cluster = Cluster(nodes)
@@ -81,7 +87,7 @@ object Setup extends LazyLogging {
     val tDispatcher = TXDispatcher(
       network,
       AggressiveLifter(cluster),
-      sink,
+      txSink,
       txPersistence,
       BackoffRetry(10, 1.seconds),
       Some(metrics)
@@ -92,8 +98,8 @@ object Setup extends LazyLogging {
       tDispatcher,
       ClusterBlockRetriever(cluster),
       new KafkaBlockOffset(name, kafkaScheduler, config.brokers),
-      Some(metrics)
-    )
+      Some(blocksSink),
+      Some(metrics))
 
     for {
       ch <- MVar.empty[Seq[FullBlock[ShallowTX]]]
@@ -102,6 +108,33 @@ object Setup extends LazyLogging {
       consumer = BlockConsumer.consumer(ch, initialized).executeOn(consumerScheduler)
       both <- Task.parMap2(producer, consumer) { case (_, r) => r }
     } yield both
+  }
+
+  private def setupBlockSink(brokers: Seq[String],
+                             metrics: Metrics,
+                             schemaRegistry: String,
+                             scheduler: Scheduler,
+                             topic: String) = new BlockSink {
+
+    val producerCfg = KafkaProducerConfig.default.copy(bootstrapServers = brokers.toList)
+    val serializerCfg = Map("schema.registry.url" -> schemaRegistry)
+    implicit val serializer: Serializer[Object] = AvroSerializer.serializer(serializerCfg, false)
+    private val producer = KafkaProducer[String, Object](producerCfg, scheduler)
+    implicit val format = RecordFormat[Schemas.Block]
+    val blockMeter = metrics.registry.meter("block-records-sent")
+
+    override def sink(block: Protocol.FullBlock[ShallowTX]): Task[Unit] = (for {
+      ll <- Task {logger.info(block.toString)}
+      ftx <- Task.now(Transformer.transformBlock(block, identity))
+      blockobj <- Task.now(ftx.get)
+      record <- Task.now(new ProducerRecord[String, Object](topic, 0, "", format.to(blockobj)))
+      _ <- producer.send(record)
+    } yield {
+      blockMeter.mark()
+    }).onErrorHandleWith { e =>
+      logger.error(e.getMessage, e)
+      Task.raiseError(e)
+    }
   }
 
   private def setupSink(brokers: Seq[String],
@@ -142,7 +175,8 @@ case class Config(name: String,
                   networkId: String,
                   nodes: Seq[String],
                   brokers: Seq[String],
-                  topic: String,
+                  txTopic: String,
+                  blocksTopic: String,
                   schemaRegistry: String,
                   graphite: Option[String])
 
@@ -155,7 +189,8 @@ object Config {
       env("NETWORK"),
       env("NODES").split(","),
       env("BROKERS").split(","),
-      env("TOPIC"),
+      env("TXS_TOPIC"),
+      env("BLOCKS_TOPIC"),
       env("SCHEMA_REGISTRY"),
       sys.env.get("GRAPHITE"))
 }
