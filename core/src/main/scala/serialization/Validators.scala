@@ -55,10 +55,9 @@ object Validators {
     v <- Either.cond(isXBytes(hex, 256), hex, IsNotXBytes(field, hex, 256))
   } yield v
 
-  def value(field: String, hex: String): Either[DomainValidation, Long] = for {
-    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
-    v <- Either.cond(fitsXBytes(hex, 16), hex, DoesNotFitXBytes(field, hex, 16))
-    c <- Right(hex2Long(v))
+  def value(field: String, hex: String): Either[DomainValidation, String] = for {
+    v <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    c <- Right(hex2BigInt(v).toString)
   } yield c
 
   def hash(field: String, hash: String): Either[DomainValidation, String] = for {
@@ -131,7 +130,6 @@ object Validators {
   } yield v
 }
 
-
 object ValidatorHelpers {
 
   def isHex(str: String): Boolean = str.matches("0x[0-9A-Fa-f]*")
@@ -139,6 +137,8 @@ object ValidatorHelpers {
   def hex2X[T](hex: String, f: BigInt => T) = f(BigInt(hex.drop(2), 16))
 
   def hex2Long(hex: String): Long = hex2X(hex, _.toLong)
+
+  def hex2BigInt(hex: String): BigInt = hex2X(hex, identity)
 
   def hex2Int(hex: String): Int = hex2X(hex, _.toInt)
 
