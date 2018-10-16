@@ -41,6 +41,26 @@ object Schemas {
 
   case class FullTransaction(blockNumber: Long, minedAt: Long, tx: Transaction, receipt: Receipt)
 
+  case class Block(blockNumber: Long,
+                   blockHash: String,
+                   parentHash: String,
+                   nonce: String,
+                   sha3uncles: String,
+                   logsBloom: String,
+                   receiptsRoot: String,
+                   transactionRoot: String,
+                   stateRoot: String,
+                   miner: String,
+                   difficulty: String,
+                   totalDifficulty: String,
+                   extraData: String,
+                   size: Long,
+                   gasLimit: Long,
+                   gasUsed: Long,
+                   timestamp: Long,
+                   transactions: Array[String],
+                   uncles: Array[String])
+
   case class CompactTransaction(blockHash: String,
                                 blockNumber: Long,
                                 fromAddr: String,
