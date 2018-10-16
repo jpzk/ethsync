@@ -42,7 +42,7 @@ object ClusterProtocol {
       * @param hash transaction hash
       * @return
       */
-    def getTransactionReceipt(hash: String): Task[Try[Json]]
+    def getTransactionReceipt(hash: String): Task[Option[Json]]
 
     /**
       * Subscribe task, it is a producer communicating via consumer
