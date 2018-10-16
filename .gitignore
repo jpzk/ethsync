@@ -4,3 +4,4 @@ target/**
 project/**
 core/target/**
 core/project/**
+docker/*
