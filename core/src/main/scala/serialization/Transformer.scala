@@ -109,7 +109,10 @@ object Transformer extends LazyLogging {
         case None => Success(Array[Log]())
       }
       logsBloom <- decode(c, "logsBloom", logsBloom)
-      status <- decode(c, "status", status)
+
+      // pre-byzantium fork there's no status field, setting default value for status field
+      // to remain backwards compatibility.
+      status <- decode(c, "status", status).recover { case _: Exception => -1 }
       hash <- decode(c, "transactionHash", hash)
       to <- decode(c, "to", optionalAddress)
       transactionIndex <- decode(c, "transactionIndex", TXIndex)

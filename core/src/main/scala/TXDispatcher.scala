@@ -17,6 +17,7 @@
 package com.reebo.ethsync.core
 
 import com.reebo.ethsync.core.Protocol._
+import com.reebo.ethsync.core.utils.Metrics
 import com.typesafe.scalalogging.LazyLogging
 import monix.eval.Task
 
@@ -40,6 +41,7 @@ case class TXDispatcher(id: String,
                         sink: TXSink,
                         persistence: TXPersistence,
                         persistenceRetry: RetryFilter,
+                        metrics: Option[Metrics] = None,
                         txs: UndispatchedTXs = Seq()) extends LazyLogging {
 
   /**
@@ -93,6 +95,7 @@ case class TXDispatcher(id: String,
     * Tries to receive transaction logs for scheduled shallow transactions.
     * Returns new TXDispatcher with new scheduled shallow transactions (when failed)
     *
+    * @todo different error handling approaches
     * @return TXDispatcher or TaskError if cannot acknowledge scheduled transactions
     */
   def dispatch: Task[TXDispatcher] = for {
@@ -127,7 +130,13 @@ case class TXDispatcher(id: String,
     // could fail IO, critical retry filter;
     // if ultimately fail blockDispatcher will not ACK
     ok <- addToPersistence(retryTxs).materialize
-
+    _ <- Task {
+      metrics.foreach { m =>
+        m.successLast = fullTxs.size
+        m.failedReceiptLast = fails.size
+        m.failedSink = failedToDispatch.size
+      }
+    }
     _ <- logOutput(fullTxs, fails, failedToDispatch)
     ret <- if (ok.isSuccess)
       Task(this.copy(txs = retryTxs))

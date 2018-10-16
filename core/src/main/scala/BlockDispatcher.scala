@@ -81,7 +81,7 @@ case class BlockDispatcher(id: String,
                            retriever: BlockRetriever,
                            persistence: BlockOffsetPersistence,
                            metrics: Option[Metrics] = None,
-                           offset: Long = -1L,
+                           offset: Long = -1L
                           ) extends LazyLogging {
 
   /**
@@ -108,7 +108,11 @@ case class BlockDispatcher(id: String,
       case Success(r) =>
         for {
           _ <- this.persistence.setLast(block.data.number)
-          _ <- Task.now(metrics.foreach(_.setBlockOffset(block.data.number)))
+          _ <- Task {
+            metrics.foreach {
+              _.blockOffset = block.data.number
+            }
+          }
           dispatch <- Task(this.copy(tXDispatcher = r, offset = block.data.number))
         } yield dispatch
       case Failure(e) =>
