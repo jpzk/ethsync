@@ -78,8 +78,18 @@ object Setup extends LazyLogging {
     val cluster = Cluster(nodes)
 
     val txPersistence = new KafkaTXPersistence(name, kafkaScheduler, config.brokers)
-    val bDispatcher = BlockDispatcher(network,
-      setupTXDispatcher(network, cluster, sink, txPersistence),
+    val tDispatcher = TXDispatcher(
+      network,
+      AggressiveLifter(cluster),
+      sink,
+      txPersistence,
+      BackoffRetry(10, 1.seconds),
+      Some(metrics)
+    )
+
+    val bDispatcher = BlockDispatcher(
+      network,
+      tDispatcher,
       ClusterBlockRetriever(cluster),
       new KafkaBlockOffset(name, kafkaScheduler, config.brokers),
       Some(metrics)
@@ -126,14 +136,6 @@ object Setup extends LazyLogging {
       .zip(Range(0, nodes.size, 1))
       .map { case (uri, id) => Web3Node(s"$networkId-$id", uri) }
   }
-
-  private def setupTXDispatcher(networkId: String, cluster: Cluster, sink: TXSink, persistence: TXPersistence) =
-    TXDispatcher(
-      networkId,
-      AggressiveLifter(cluster),
-      sink,
-      persistence,
-      BackoffRetry(10, 1.seconds))
 }
 
 case class Config(name: String,

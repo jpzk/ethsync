@@ -19,7 +19,7 @@ package com.reebo.ethsync.core.utils
 import java.net.InetSocketAddress
 import java.util.concurrent.TimeUnit
 
-import com.codahale.metrics.{ConsoleReporter, Gauge, MetricFilter, MetricRegistry}
+import com.codahale.metrics.{Gauge, MetricFilter, MetricRegistry}
 import com.codahale.metrics.graphite.{Graphite, GraphiteReporter}
 
 /**
@@ -40,12 +40,22 @@ class Metrics(name: String, graphite: Option[String]) {
       .build(graphite)
     reporter.start(1, TimeUnit.SECONDS);
   }
-  var blockOffsetGauge: Long = -1
-  registry.register("block-offset", new Gauge[Long] {
-    override def getValue: Long = blockOffsetGauge
-  })
 
-  def setBlockOffset(v: Long) = {
-    blockOffsetGauge = v
-  }
+  var blockOffset : Long = -1
+  var failedReceiptLast: Int = -1
+  var failedSink: Int = -1
+  var successLast: Int = -1
+
+  registry.register("txs-failed-receipt", new Gauge[Int] {
+    override def getValue: Int = failedReceiptLast
+  })
+  registry.register("txs-failed-sink", new Gauge[Int] {
+    override def getValue: Int = failedSink
+  })
+  registry.register("txs-success", new Gauge[Int] {
+    override def getValue: Int = successLast
+  })
+  registry.register("block-offset", new Gauge[Long] {
+    override def getValue: Long = blockOffset
+  })
 }
