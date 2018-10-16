@@ -30,7 +30,6 @@ import monix.eval.{MVar, Task}
 import JSONDecoder._
 
 import scala.concurrent.duration._
-import scala.util.Try
 
 /**
   * Abstraction of Ethereum client node using JSON-RPC, it is fault-tolerant e.g.
@@ -52,8 +51,10 @@ case class Web3Node(idName: String, url: String)(implicit backend: HTTPBackend)
     * @param hash transaction hash
     * @return
     */
-  override def getTransactionReceipt(hash: String): Task[Try[Json]] =
-    underlying.getTXReceipt(hash).materialize
+  override def getTransactionReceipt(hash: String): Task[Option[Json]] =
+    underlying.getTXReceipt(hash).map { json =>
+      if(json.isNull) None else Some(json)
+    }
 
   /**
     * Polls block updates in a loop until it retrieves updates

@@ -31,7 +31,7 @@ lazy val core = (project in file("core")).
         from("anapsix/alpine-java")
         add(artifact, artifactTargetPath)
         copy(baseDirectory(_ / "src" / "main" / "resources" / "logback.xml").value, "/src/main/resources/")
-        entryPoint("java", "-Dlogback.configurationFile=/app/logback.xml", "-cp",
+        entryPoint("java", "-Dlogback.configurationFile=/config/logback.xml", "-cp",
           artifactTargetPath, "com.reebo.ethsync.core.utils.Main")
       }
     }
