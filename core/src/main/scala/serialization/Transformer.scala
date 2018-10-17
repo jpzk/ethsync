@@ -17,7 +17,7 @@
 package com.reebo.ethsync.core.serialization
 
 import com.reebo.ethsync.core.CirceHelpers._
-import com.reebo.ethsync.core.Protocol.FullTX
+import com.reebo.ethsync.core.Protocol.{FullBlock, FullTX, ShallowTX}
 import com.sksamuel.avro4s.{SchemaFor, ToRecord}
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.{Decoder, HCursor, Json}
@@ -55,8 +55,7 @@ object Transformer extends LazyLogging {
       uncles <- decode(c, "uncles", uncles)
       transactions <- Traverse[List].sequence(transactions.map(json2Transaction).toList)
     } yield Block(blockNumber, blockHash, parent, nonceField, sha3uncles, logsBloom, transactionRoot,
-      receiptsRoot, stateRoot, miner, difficultyField, totalDifficulty, extraData, size, gasLimit, gasUsed, timestamp,
-      uncles, transactions.toArray)
+      receiptsRoot, stateRoot, miner, difficultyField, totalDifficulty, extraData, size, gasLimit, gasUsed, timestamp, transactions.toArray, uncles)
     f.recoverWith {
       case e: Exception =>
         logger.error(s"Error on block ${block.toString()}: ${e.getMessage}")
@@ -199,7 +198,7 @@ object Transformer extends LazyLogging {
     * Validates the FullTX with validators and applys f to convert to another schema
     *
     * @param tx transaction
-    * @param f converter function to T
+    * @param f  converter function to T
     * @tparam T result type T
     */
   def transform[T: SchemaFor : ToRecord](tx: FullTX, f: FullTransaction => T) = for {

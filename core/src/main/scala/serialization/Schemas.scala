@@ -40,8 +40,8 @@ object Schemas {
                    gasLimit: Long,
                    gasUsed: Long,
                    timestamp: Long,
-                   uncles: Array[String],
-                   transactions: Array[Transaction])
+                   transactions: Array[Transaction],
+                   uncles: Array[String])
 
   case class Log(address: String,
                  logTopics: Array[String],

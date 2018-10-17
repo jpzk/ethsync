@@ -44,6 +44,9 @@ object Validators {
   def topics(field: String, hexes: Array[String]): Either[DomainValidation, Array[String]] =
     Either.cond(hexes.forall(isHex), hexes, NotHash(field, hexes.toString))
 
+  def uncles(field: String, hexes: Array[String]): Either[DomainValidation, Array[String]] =
+    Either.cond(hexes.forall(isHex), hexes, NotHash(field, hexes.toString))
+
   def status(field: String, hex: String): Either[DomainValidation, Int] = for {
     _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
     v <- Either.cond(fitsXBytes(hex, 1), hex, DoesNotFitXBytes(field, hex, 1))
@@ -60,7 +63,27 @@ object Validators {
     c <- Right(hex2BigInt(v).toString)
   } yield c
 
+  def difficulty(field: String, hex: String): Either[DomainValidation, String] = for {
+    v <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    c <- Right(hex2BigInt(v).toString)
+  } yield c
+
   def hash(field: String, hash: String): Either[DomainValidation, String] = for {
+    _ <- Either.cond(isHex(hash), hash, NotHash(field, hash))
+    v <- Either.cond(isXBytes(hash, 32), hash, IsNotXBytes(field, hash, 32))
+  } yield v
+
+  def transactionsRoot(field: String, hash: String): Either[DomainValidation, String] = for {
+    _ <- Either.cond(isHex(hash), hash, NotHash(field, hash))
+    v <- Either.cond(isXBytes(hash, 32), hash, IsNotXBytes(field, hash, 32))
+  } yield v
+
+  def stateRoot(field: String, hash: String): Either[DomainValidation, String] = for {
+    _ <- Either.cond(isHex(hash), hash, NotHash(field, hash))
+    v <- Either.cond(isXBytes(hash, 32), hash, IsNotXBytes(field, hash, 32))
+  } yield v
+
+  def receiptsRoot(field: String, hash: String): Either[DomainValidation, String] = for {
     _ <- Either.cond(isHex(hash), hash, NotHash(field, hash))
     v <- Either.cond(isXBytes(hash, 32), hash, IsNotXBytes(field, hash, 32))
   } yield v
@@ -93,7 +116,19 @@ object Validators {
     c <- Right(hex2Int(v))
   } yield c
 
+ def size(field: String, hex: String): Either[DomainValidation, Int] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(fitsXBytes(hex, 4), hex, DoesNotFitXBytes(field, hex, 4))
+    c <- Right(hex2Int(v))
+  } yield c
+
   def gas(field: String, hex: String): Either[DomainValidation, Long] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(fitsXBytes(hex, 8), hex, DoesNotFitXBytes(field, hex, 8))
+    c <- Right(hex2Long(v))
+  } yield c
+
+  def timestamp(field: String, hex: String): Either[DomainValidation, Long] = for {
     _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
     v <- Either.cond(fitsXBytes(hex, 8), hex, DoesNotFitXBytes(field, hex, 8))
     c <- Right(hex2Long(v))
@@ -104,6 +139,10 @@ object Validators {
     v <- Either.cond(isHex(hex), hex, NotHash(field, hex))
   } yield v
 
+  def extraData(field: String, hex: String): Either[DomainValidation, String] = for {
+    v <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+  } yield v
+
   def logData(field: String, hex: String): Either[DomainValidation, String] = for {
     v <- Either.cond(isHex(hex), hex, NotHash(field, hex))
   } yield v
@@ -111,6 +150,16 @@ object Validators {
   def nonce(field: String, hex: String): Either[DomainValidation, String] = for {
     _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
     v <- Either.cond(fitsXBytes(hex, 4), hex, DoesNotFitXBytes(field, hex, 4))
+  } yield v
+
+  def blockNonce(field: String, hex: String): Either[DomainValidation, String] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(isXBytes(hex, 8), hex, IsNotXBytes(field, hex, 8))
+  } yield v
+
+  def sha3uncles(field: String, hex: String): Either[DomainValidation, String] = for {
+    _ <- Either.cond(isHex(hex), hex, NotHash(field, hex))
+    v <- Either.cond(fitsXBytes(hex, 32), hex, DoesNotFitXBytes(field, hex, 32))
   } yield v
 
   def v(field: String, hex: String): Either[DomainValidation, Byte] = for {

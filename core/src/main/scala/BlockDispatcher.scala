@@ -80,9 +80,9 @@ case class BlockDispatcher(id: String,
                            tXDispatcher: TXDispatcher,
                            retriever: BlockRetriever,
                            persistence: BlockOffsetPersistence,
+                           sink: Option[BlockSink] = None,
                            metrics: Option[Metrics] = None,
-                           offset: Long = -1L
-                          ) extends LazyLogging {
+                           offset: Long = -1L) extends LazyLogging {
 
   /**
     * Initializing block dispatcher; gets offset from persistence
@@ -117,6 +117,7 @@ case class BlockDispatcher(id: String,
             case Some(s) => s.sink(block)
             case None => Task.unit
           }
+          _ <- Task { sink.foreach(s => s.sink(block)) }
           dispatch <- Task(this.copy(tXDispatcher = r, offset = block.data.number))
         } yield dispatch
       case Failure(e) =>
