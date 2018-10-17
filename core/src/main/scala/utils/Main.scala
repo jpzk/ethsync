@@ -123,7 +123,6 @@ object Setup extends LazyLogging {
     val blockMeter = metrics.registry.meter("block-records-sent")
 
     override def sink(block: Protocol.FullBlock[ShallowTX]): Task[Unit] = (for {
-      ll <- Task {logger.info(block.toString)}
       ftx <- Task.now(Transformer.transformBlock(block, identity))
       blockobj <- Task.now(ftx.get)
       record <- Task.now(new ProducerRecord[String, Object](topic, 0, "", format.to(blockobj)))
