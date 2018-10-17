@@ -84,8 +84,7 @@ object Setup extends LazyLogging {
       sink,
       txPersistence,
       BackoffRetry(10, 1.seconds),
-      Some(metrics)
-    )
+      Some(metrics))
 
     val bDispatcher = BlockDispatcher(
       network,

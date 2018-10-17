@@ -16,44 +16,32 @@
   */
 package com.reebo.ethsync.core.serialization
 
+/**
+  * The case classes here are used for Avro serialization
+  */
 object Schemas {
-
-  def Log2CompactLog(log: Log) = CompactLog(log.logTopics, log.data, log.removed)
-
-  def FullTransaction2CompactTransaction(tx: FullTransaction) = {
-    val txd = tx.tx
-    CompactTransaction(
-      txd.blockHash,
-      txd.blockNumber,
-      txd.fromAddr,
-      txd.hash,
-      txd.input,
-      txd.toAddr,
-      txd.weiValue,
-      tx.receipt.status,
-      tx.receipt.contractAddress,
-      tx.receipt.logs.map(Log2CompactLog),
-      tx.receipt.logsBloom
-    )
-  }
-
-  case class FullTransactionKey(partition: String)
 
   case class FullTransaction(blockNumber: Long, minedAt: Long, tx: Transaction, receipt: Receipt)
 
-  case class CompactTransaction(blockHash: String,
-                                blockNumber: Long,
-                                fromAddr: String,
-                                hash: String,
-                                input: String,
-                                toAddr: Option[String],
-                                weiValue: String,
-                                status: Int,
-                                contractAddress: Option[String],
-                                logs: Array[CompactLog],
-                                logsBloom: String)
-
-  case class CompactLog(logTopics: Array[String], data: String, removed: Boolean)
+  case class Block(blockNumber: Long,
+                   blockHash: String,
+                   parentHash: String,
+                   nonce: String,
+                   sha3uncles: String,
+                   logsBloom: String,
+                   receiptsRoot: String,
+                   transactionRoot: String,
+                   stateRoot: String,
+                   miner: String,
+                   difficulty: String,
+                   totalDifficulty: String,
+                   extraData: String,
+                   size: Long,
+                   gasLimit: Long,
+                   gasUsed: Long,
+                   timestamp: Long,
+                   uncles: Array[String],
+                   transactions: Array[Transaction])
 
   case class Log(address: String,
                  logTopics: Array[String],
@@ -92,5 +80,4 @@ object Schemas {
                          v: Byte,
                          r: String,
                          s: String)
-
 }

@@ -113,6 +113,10 @@ case class BlockDispatcher(id: String,
               _.blockOffset = block.data.number
             }
           }
+          _ <- sink match {
+            case Some(s) => s.sink(block)
+            case None => Task.unit
+          }
           dispatch <- Task(this.copy(tXDispatcher = r, offset = block.data.number))
         } yield dispatch
       case Failure(e) =>

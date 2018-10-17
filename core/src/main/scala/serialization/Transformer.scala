@@ -21,6 +21,9 @@ import com.reebo.ethsync.core.Protocol.FullTX
 import com.sksamuel.avro4s.{SchemaFor, ToRecord}
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.{Decoder, HCursor, Json}
+import cats.Traverse
+import cats.instances.try_._
+import cats.instances.list._
 
 import scala.util.{Failure, Success, Try}
 
@@ -28,6 +31,38 @@ object Transformer extends LazyLogging {
 
   import Schemas._
   import Validators._
+
+  def json2Block(block: Json, transactions: Seq[Json]): Try[Block] = {
+    val c = block.hcursor
+    val f = for {
+      blockHash <- decode(c, "hash", hash)
+      blockNumber <- decode(c, "number", blockNumber)
+      parent <- decode(c, "parentHash", hash)
+      nonceField <- decode(c, "nonce", blockNonce)
+      sha3uncles <- decode(c, "sha3Uncles", sha3uncles)
+      logsBloom <- decode(c, "logsBloom", logsBloom)
+      transactionRoot <- decode(c, "transactionsRoot", transactionsRoot)
+      stateRoot <- decode(c, "stateRoot", stateRoot)
+      receiptsRoot <- decode(c, "receiptsRoot", receiptsRoot)
+      miner <- decode(c, "miner", address)
+      difficultyField <- decode(c, "difficulty", difficulty)
+      totalDifficulty <- decode(c, "totalDifficulty", difficulty)
+      extraData <- decode(c, "extraData", extraData)
+      size <- decode(c, "size", gas)
+      gasLimit <- decode(c, "gasLimit", gas)
+      gasUsed <- decode(c, "gasUsed", gas)
+      timestamp <- decode(c, "timestamp", timestamp)
+      uncles <- decode(c, "uncles", uncles)
+      transactions <- Traverse[List].sequence(transactions.map(json2Transaction).toList)
+    } yield Block(blockNumber, blockHash, parent, nonceField, sha3uncles, logsBloom, transactionRoot,
+      receiptsRoot, stateRoot, miner, difficultyField, totalDifficulty, extraData, size, gasLimit, gasUsed, timestamp,
+      uncles, transactions.toArray)
+    f.recoverWith {
+      case e: Exception =>
+        logger.error(s"Error on block ${block.toString()}: ${e.getMessage}")
+        Failure(e)
+    }
+  }
 
   /**
     * Converting a transaction JSON (from JSON-RPC) into Transaction case class
@@ -171,5 +206,17 @@ object Transformer extends LazyLogging {
     txn <- Transformer.json2Transaction(tx.data.data)
     receipt <- Transformer.json2Receipt(tx.receipt)
   } yield f(FullTransaction(txn.blockNumber, tx.data.timestamp, txn, receipt))
+
+  /**
+    * Validates the block JSON and applies f to convert to another schema
+    *
+    * @param block
+    * @param f
+    * @tparam T
+    * @return
+    */
+  def transformBlock[T: SchemaFor : ToRecord](block: FullBlock[ShallowTX], f: Schemas.Block => T) = for {
+    block <- Transformer.json2Block(block.data.data, block.txs.map(_.data.data))
+  } yield f(block)
 }
 

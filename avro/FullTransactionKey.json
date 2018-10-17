@@ -1,9 +1,0 @@
-{
-  "type" : "record",
-  "name" : "FullTransactionKey",
-  "namespace" : "com.reebo.ethsync.core.serialization",
-  "fields" : [ {
-    "name" : "partition",
-    "type" : "string"
-  } ]
-}
