@@ -16,4 +16,4 @@ ethsync is a bridge between Ethereum nodes and Kafka. It stores in-flight transa
 * Different output formats
 
 ## Known Caveats / Issues
-* In multi-instance mode, where there is more than one Eventeum instance in a system, your services are required to handle duplicate messages gracefully, as each instance will broadcast the same events.
+* In multi-instance mode, where there is more than one Ethsync instance in a system, your services are required to handle duplicate messages gracefully, as each instance will broadcast the same events.
